@@ -784,7 +784,7 @@ function rerenderCategorias(lista, idxFoco) {
               })
             : [];
                     updatePayload.categoria = categoriasFinales[0] || 'Por definir';
-          updatePayload.categoria_clave = JSON.stringify(categoriasFinales);
+         updatePayload.categoria_clave = categoriasFinales;
         }
 
         const { error: errWrite } = await sb
