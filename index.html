@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- =============================================================================
+     [HEAD · SEGURIDAD] Content-Security-Policy (CSP) — Hardening Front-End
+     -----------------------------------------------------------------------------
+     Qué hace: le dice al navegador de dónde SÍ se puede cargar cada tipo de
+     recurso (imágenes, estilos, scripts, iframes) y de dónde NO. Esto reduce
+     drásticamente el riesgo de inyección de scripts (XSS) si algún día algún
+     dato externo se metiera sin sanitizar al DOM.
+
+       default-src 'self'   -> por default, solo se permite el propio origen.
+       img-src   'self' data: https:  -> permite el mapa, las fotos redondas
+                        de los locales (pueden venir de cualquier https, ej.
+                        Imgur/Drive/CDN) y los data: URI (miniaturas base64).
+       style-src / script-src 'self' 'unsafe-inline' -> este archivo es un
+                        único HTML autocontenido (sin build ni bundler), así
+                        que el <style> y el <script> van inline; por eso se
+                        permite 'unsafe-inline' SOLO para estilos/scripts del
+                        propio documento. No se permite ningún script de
+                        terceros ni inline inyectado desde otro origen.
+       frame-src 'self' -> permite que el modal abra los perfiles de cada
+                        plan (Locales/local-N.html) en un <iframe>, pero
+                        SOLO si viven en este mismo dominio; bloquea que se
+                        incruste un iframe de otro sitio.
+       object-src 'none', base-uri 'self', form-action 'self' -> cierran
+                        vectores clásicos de XSS (plugins, <base> hijackeado,
+                        formularios reenviados a otro dominio).
+
+     Importante sobre clickjacking: la directiva "frame-ancestors" (que evita
+     que ESTA página sea incrustada dentro de un iframe ajeno) NO tiene efecto
+     si se declara aquí, en un <meta> — los navegadores solo la respetan
+     cuando viene en la cabecera HTTP real "Content-Security-Policy". Por eso
+     el archivo "_headers" (junto a este index.html, para Cloudflare Pages)
+     agrega frame-ancestors 'self' y X-Frame-Options: SAMEORIGIN a nivel de
+     servidor. Este <meta> es el respaldo para cualquier otro hosting estático
+     que no lea "_headers". -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-src 'self'; connect-src 'self' https://vjzbuxparhndkepfmhlt.supabase.co">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<!-- =============================================================================
+     [HEAD · SEO] Metadatos de búsqueda y compartido social (Open Graph)
+     -----------------------------------------------------------------------------
+     Qué hace: cuando alguien pega el link tianguis-bocadelrio.pages.dev en
+     WhatsApp, Facebook, Messenger, etc., esas apps NO renderizan la página:
+     leen estas etiquetas <meta> y armar con ellas la tarjeta de vista previa
+     (título + descripción + imagen). Si se quiere cambiar la imagen/texto de
+     esa tarjeta, este es el único bloque que hay que tocar. -->
+<title>Tianguis Digital — Mapa interactivo del Tianguis Digital</title>
+<meta name="description" content="Explora el mapa interactivo del Tianguis Digital: encuentra locales de ropa, comida, electrónicos y más, con foto, categoría y contacto directo por WhatsApp.">
+<meta name="keywords" content="tianguis, tianguis digital, mapa interactivo, locales, comercio, mercado digital">
+<link rel="canonical" href="https://tianguis-digital.pages.dev/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tianguis Digital">
+<meta property="og:locale" content="es_MX">
+<meta property="og:url" content="https://tianguis-digital.pages.dev/">
+<meta property="og:title" content="Tianguis Digital — Mapa interactivo del Tianguis Digital">
+<meta property="og:description" content="Encuentra cualquier local del Tianguis Digital en segundos: mapa interactivo, filtros por categoría y contacto directo por WhatsApp.">
+<meta property="og:image" content="https://tianguis-digital.pages.dev/TianguisDigital.png">
+<meta property="og:image:alt" content="Mapa interactivo del Tianguis Digital">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tianguis Digital — Mapa interactivo del Tianguis Digital">
+<meta name="twitter:description" content="Encuentra cualquier local del Tianguis Digital en segundos: mapa interactivo, filtros por categoría y contacto directo por WhatsApp.">
+<meta name="twitter:image" content="https://tianguis-digital.pages.dev/TianguisDigital.png">
+<style>
+  .disclaimer-container {
+  width: 100%;
+  background-color: #f8f9fa;
+  padding: 20px 15px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+  margin-top: 40px;
+  box-sizing: border-box;
+}
+
+.disclaimer-text {
+  font-size: 0.85rem;
+  color: #6c757d;
+  line-height: 1.5;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+  :root {
+    --bg-page: #FBF4EA;      /* piso del mercado / fondo de la pagina */
+    --bg-card: #FFFFFF;
+    --coral: #F7BFB6;
+    --coral-hover: #FF9E8C;
+    --coral-active: #FF6F59;
+    --text: #2B2B2B;
+    --muted: #857F76;
+    --border: #EDE3D4;
+    --premium: #D9C6EC;
+    --plus: #F9D9A6;
+    --shadow: 0 12px 32px rgba(43,32,20,0.12);
+
+    /* ---- Colores del hitbox del mapa y del avatar del callout, UNO POR
+       CADA PLAN (tonos pastel, según lo solicitado). Esta es la única
+       parte del código que hay que tocar para cambiar cómo se ve un plan.
+       Cada local ya trae su propio campo "plan": "normal" | "plus" |
+       "premium" en shopsData; el hitbox y el avatar leen ese valor (vía
+       data-plan) y aplican automáticamente estas variables, así que un
+       local nuevo nunca requiere copiar ni tocar CSS aparte: basta con
+       escribir el nombre correcto del plan. */
+    --plan-normal-fill: #D8CFC0;      /* arena pastel: plan básico */
+    --plan-normal-glow: rgba(184, 170, 148, 0.4);
+    --plan-plus-fill: #F5C99B;        /* durazno pastel: plan intermedio */
+    --plan-plus-glow: rgba(245, 201, 155, 0.5);
+    --plan-premium-fill: #E3C888;     /* dorado pastel: plan tope */
+    --plan-premium-glow: rgba(227, 200, 136, 0.55);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: linear-gradient(160deg, #FFFBF5 0%, #FBF0DE 55%, #F6E4CB 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 24px clamp(16px, 4vw, 40px) 8px;
+    text-align: center;
+  }
+  header h1 { margin: 0 0 4px; font-size: clamp(22px, 3vw, 30px); }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* =====================================================================
+     [FLEXBOX DINÁMICO] Contenedor de filtros de categoría
+     ---------------------------------------------------------------------
+     display:flex + flex-wrap:wrap + gap hacen que este contenedor sea
+     "elástico" de forma automática: los botones se generan uno por cada
+     valor de la lista CATEGORIAS (ver [SECCIÓN B] en el <script>), así que
+     si quitas, agregas o renombras una categoría ahí, este bloque NUNCA se
+     rompe ni hay que tocar CSS — los botones sencillamente se acomodan en
+     tantas filas como se necesiten, sin desbordar la pantalla en ningún
+     tamaño (celular, tablet o escritorio). No hay anchos fijos ni conteos
+     de columnas quemados: todo se autoajusta con gap.
+     ========================================================================= */
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px clamp(16px, 4vw, 40px) 4px;
+  }
+  .filtro-btn {
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .filtro-btn:hover { border-color: var(--coral-hover); }
+  .filtro-btn.activo {
+    background: var(--coral-active);
+    border-color: var(--coral-active);
+    color: #fff;
+  }
+
+  .map-wrap {
+    position: relative;
+    max-width: 900px;
+    margin: 16px auto 40px;
+    padding: 0 16px;
+  }
+  .map-frame {
+    position: relative;
+    width: 100%;
+    line-height: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: var(--shadow);
+    /* deja que la pagina se siga desplazando verticalmente con un dedo,
+       pero le quita al navegador el pellizco/doble-toque nativo dentro del
+       recuadro, para que ese gesto lo controle nuestro propio JS (ver
+       [SECCIÓN C]) y solo mueva lo de adentro del mapa, no la pagina */
+    touch-action: pan-y;
+  }
+  /* Todo lo que va DENTRO del recuadro (imagen + overlays de los locales).
+     El pellizco para acercar/alejar y arrastrar solo transforma este div;
+     el header, los filtros y el resto de la pagina nunca se mueven. */
+  .map-inner {
+    transform-origin: center center;
+    will-change: transform;
+  }
+  .map-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .map-frame svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  /* Botoncito para restablecer el acercamiento del mapa (solo aparece
+     cuando el usuario ya hizo zoom hacia adentro) */
+  .map-zoom-reset {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 5;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    display: none;
+  }
+  .map-zoom-reset.visible { display: block; }
+
+  .local-hitbox {
+    fill: var(--plan-normal-fill);
+    fill-opacity: 0;
+    stroke: var(--plan-normal-fill);
+    stroke-opacity: 0;
+    stroke-width: 5;
+    cursor: pointer;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: fill-opacity 0.12s ease, stroke-opacity 0.12s ease,
+                opacity 0.2s ease, transform 0.18s ease, filter 0.18s ease;
+  }
+  /* Cada plan trae su propio color de hitbox: basta con que el local
+     tenga "plan": "plus" o "plan": "premium" en shopsData para que el
+     recuadro herede el color correcto, sin tocar nada más. */
+  .local-hitbox[data-plan="plus"] {
+    fill: var(--plan-plus-fill);
+    stroke: var(--plan-plus-fill);
+  }
+  .local-hitbox[data-plan="premium"] {
+    fill: var(--plan-premium-fill);
+    stroke: var(--plan-premium-fill);
+  }
+  .local-hitbox:hover,
+  .local-hitbox:focus-visible,
+  .local-hitbox.is-open,
+  .local-hitbox.match {
+    fill-opacity: 0.55;
+    stroke-opacity: 0.9;
+    transform: scale(1.05) translateY(-4px);
+    filter: drop-shadow(0 6px 14px var(--plan-normal-glow));
+  }
+  .local-hitbox[data-plan="plus"]:hover,
+  .local-hitbox[data-plan="plus"]:focus-visible,
+  .local-hitbox[data-plan="plus"].is-open,
+  .local-hitbox[data-plan="plus"].match {
+    filter: drop-shadow(0 6px 14px var(--plan-plus-glow));
+  }
+  .local-hitbox[data-plan="premium"]:hover,
+  .local-hitbox[data-plan="premium"]:focus-visible,
+  .local-hitbox[data-plan="premium"].is-open,
+  .local-hitbox[data-plan="premium"].match {
+    filter: drop-shadow(0 6px 14px var(--plan-premium-glow));
+  }
+  .local-hitbox:focus-visible { outline: none; }
+
+  /* estado del filtro de categorias: los que coinciden se ven igual que si
+     el mouse estuviera encima (mismo brillo del hover); los que no, se atenúan */
+  .local-hitbox.dim { opacity: 0.18; }
+
+  /* =====================================================================
+     [NUMERACIÓN VISUAL DINÁMICA] Número de cada local sobre el mapa
+     ---------------------------------------------------------------------
+     Este <text> NO viene quemado en la imagen del mapa (TianguisDigital.png
+     sigue siendo un PNG limpio, sin números pintados). Cada número se
+     genera en JS (ver función renderLocalNumbers en [SECCIÓN C]) leyendo
+     las coordenadas x/y/width/height del <rect class="local-hitbox"> y el
+     campo "numero" de shopsData de ese mismo local, y se inserta como un
+     <text> hermano justo despues del rect. Por eso:
+       - Si mueves/agrandas un hitbox en [SECCIÓN A], el número lo sigue
+         solo (se recalcula centrado en el rect, siempre).
+       - Si cambias el campo "numero" de un local en shopsData, el número
+         que se ve en el mapa cambia solo, sin tocar el SVG.
+     pointer-events: none es clave: el número nunca "roba" el clic/hover al
+     hitbox que tiene debajo, así que la interacción original del mapa
+     (callout, modal, zoom) queda exactamente igual.
+     ========================================================================= */
+  .local-number {
+    font-family: inherit;
+    font-size: 25px;
+    font-weight: 800;
+    fill: var(--text);
+    opacity: 0.5;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    user-select: none;
+    transition: opacity 0.15s ease;
+  }
+  /* el número se ve mas marcado exactamente en los mismos casos en que el
+     propio hitbox ya se resalta (hover, seleccionado, o coincide con el
+     filtro de categoria activo), reutilizando esas mismas clases */
+  .local-hitbox:hover + .local-number,
+  .local-hitbox:focus-visible + .local-number,
+  .local-hitbox.is-open + .local-number,
+  .local-hitbox.match + .local-number {
+    opacity: 1;
+  }
+  .local-hitbox.dim + .local-number { opacity: 0.18; }
+
+  /* ---- Tarjeta flotante (callout) con linea conectora ---- */
+  #connectorSvg {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 45;
+  }
+  #connectorSvg line {
+    /* la linea conectora se dejo de usar (ahora la tarjeta se posiciona
+       pegada al local sin trazo visible); se mantiene oculta siempre */
+    stroke: transparent;
+    stroke-width: 0;
+    opacity: 0;
+  }
+  #callout {
+    position: fixed;
+    z-index: 46;
+    width: 260px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+    display: none;
+  }
+  #callout.visible { display: block; }
+  .callout-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .callout-foto-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .callout-foto {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--coral) center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #fff; font-size: 20px;
+    border: 3px solid var(--bg-card);
+    box-shadow: 0 0 0 3px var(--plan-normal-fill);
+    transition: box-shadow 0.15s ease;
+  }
+  /* El anillo alrededor de la foto cambia de color según el plan del
+     local; basta con que shopsData tenga el "plan" correcto para que
+     esto se aplique solo, sin tocar CSS por cada local. */
+  .callout-foto-wrap[data-plan="plus"] .callout-foto {
+    box-shadow: 0 0 0 3px var(--plan-plus-fill);
+  }
+  .callout-foto-wrap[data-plan="premium"] .callout-foto {
+    box-shadow: 0 0 0 3px var(--plan-premium-fill);
+  }
+
+  /* Insignia pequeña en la esquina del círculo: estrella para Plus,
+     corona para Premium. Normal no lleva insignia. */
+  .callout-plan-badge {
+    display: none;
+    position: absolute;
+    bottom: -2px; right: -2px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px solid var(--bg-card);
+    align-items: center; justify-content: center;
+    font-size: 12px; line-height: 1;
+    box-shadow: 0 2px 6px rgba(43,32,20,0.18);
+  }
+  .callout-foto-wrap[data-plan="plus"] .callout-plan-badge,
+  .callout-foto-wrap[data-plan="premium"] .callout-plan-badge {
+    display: flex;
+  }
+  .callout-foto-wrap[data-plan="plus"] .callout-plan-badge {
+    background: var(--plan-plus-fill);
+  }
+  .callout-foto-wrap[data-plan="premium"] .callout-plan-badge {
+    background: var(--plan-premium-fill);
+  }
+  .callout-info { min-width: 0; }
+  .callout-numero { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .callout-nombre { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .callout-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+  .chip {
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .callout-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: var(--coral-active);
+    color: #fff;
+    border: none;
+    padding: 9px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ---- Modal (perfil completo) ---- */
+  #modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(43,32,20,0.35);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  #modal-backdrop.open { display: flex; }
+  #modal {
+    background: var(--bg-card);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 28px 24px 24px;
+    position: relative;
+    text-align: center;
+  }
+
+  /* ---- Modal en modo "perfil por plan" (carga el HTML del plan del
+     local en un iframe, tal cual esta diseñado, sin mezclar sus estilos
+     con los de esta pagina). El ancho se ajusta segun el plan del local
+     via la variable --modal-iframe-w que se define desde JS. ---- */
+  #modal.modal--iframe {
+    max-width: min(var(--modal-iframe-w, 420px), 95vw);
+    max-height: 90vh;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    box-shadow: none;
+  }
+  #modal-generic { display: block; }
+  #modal.modal--iframe #modal-generic { display: none; }
+  #modal-iframe {
+    display: none;
+    width: 100%;
+    height: 85vh;
+    border: 0;
+    border-radius: 20px;
+    background: var(--bg-card);
+  }
+  #modal.modal--iframe #modal-iframe { display: block; }
+
+  #modal-close {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: var(--bg-page);
+    border: none;
+    color: var(--text);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    z-index: 5;
+  }
+  #modal-close:hover { background: var(--border); }
+  #modal.modal--iframe #modal-close {
+    top: 10px; right: 10px;
+    background: rgba(43,32,20,0.55);
+    color: #fff;
+  }
+  #modal.modal--iframe #modal-close:hover { background: rgba(43,32,20,0.8); }
+
+  @media (max-width: 480px) {
+    #modal.modal--iframe { max-width: 96vw; }
+    #modal-iframe { height: 88vh; }
+  }
+  #modal-foto {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    background: var(--coral) center/cover no-repeat;
+    margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #fff; font-size: 28px;
+    border: 3px solid var(--bg-card);
+    box-shadow: 0 0 0 3px var(--border);
+  }
+  #modal-badge {
+    display: none;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  #modal-badge.plan-plus { display: inline-block; background: var(--plus); color: #7a5b16; }
+  #modal-numero { color: var(--muted); font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+  #modal-title { margin: 0 0 10px; font-size: 22px; }
+  #modal-extra {
+    text-align: left;
+    background: var(--bg-page);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  #modal-extra.visible { display: block; }
+  #modal-extra p { margin: 4px 0; font-size: 13px; }
+  #modal-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 10px; }
+  #modal-desc { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 22px; text-align: left; }
+  #modal-whatsapp {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #25d366;
+    color: #06210f;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+  #modal-whatsapp:hover { filter: brightness(1.05); }
+
+  body.modal-open { overflow: hidden; }
+
+  @media (max-width: 480px) {
+    #callout { width: 210px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================================================
+     ÍNDICE DE ESTE ARCHIVO (búscalo con Ctrl+F si te pierdes)
+     -------------------------------------------------------------------------
+     [SECCIÓN A] MAPA — Las 16 cajitas invisibles (<rect>) con la posición
+                 de cada local sobre la imagen. Solo tiene coordenadas
+                 (x, y, ancho, alto). AQUÍ NO SE PONE nombre, categoría,
+                 plan, whatsapp, ni nada de contenido del negocio.
+
+     [SECCIÓN B] shopsData — AQUÍ SÍ va toda la información real de cada
+                 local: nombre, categoría, plan, whatsapp, perfil_url, etc.
+                 Es el único lugar que necesitas tocar seguido para capturar
+                 o actualizar un comerciante.
+
+     [SECCIÓN C] LÓGICA DEL MAPA — filtros, tarjetita al pasar el mouse
+                 (callout), modal/perfil completo, etc. Código de
+                 funcionamiento; normalmente no se toca.
+
+     -------------------------------------------------------------------------
+     CÓMO FUNCIONAN LOS HITBOXES Y LAS COORDENADAS (SECCIÓN A)
+     -------------------------------------------------------------------------
+     El <svg id="overlaySvg"> usa viewBox="0 0 2160 2160": es un lienzo
+     cuadrado de 2160 x 2160 unidades que se estira/encoge solo para calzar
+     exactamente encima de TianguisDigital.png (por eso el mapa se ve bien
+     igual en celular que en pantalla grande — las coordenadas son siempre
+     relativas a ese lienzo de 2160x2160, nunca a pixeles reales de pantalla).
+
+     Cada local es un <rect class="local-hitbox">, con:
+       data-id="local-N"  -> la llave que lo conecta con shopsData["local-N"]
+                             en la SECCIÓN B. Si agregas un rect nuevo, dale
+                             un data-id único y crea esa misma llave abajo.
+       x, y               -> esquina superior-izquierda del cajón invisible,
+                             en unidades del viewBox (0,0 = esquina sup-izq
+                             del mapa completo).
+       width, height      -> ancho y alto de ese cajón, en las mismas
+                             unidades. Cuanto más grande el local en la
+                             imagen real, más grandes deben ser estos valores
+                             para cubrirlo bien.
+       rx="14"            -> esquinas redondeadas del cajón (solo estético
+                             al hacer hover, no afecta el área clicleable).
+       tabindex="0" role="button" aria-label="..." -> accesibilidad: permite
+                             navegar el mapa con teclado (Tab + Enter/Espacio)
+                             y que un lector de pantalla anuncie qué local es.
+     El propio <rect> es invisible (fill-opacity:0) hasta que se pasa el
+     mouse o se selecciona; ahí el CSS le sube la opacidad (ver
+     .local-hitbox:hover / .is-open / .match en el <style>). El color de esa
+     iluminación depende del "plan" de shopsData (ver variables --plan-*-fill
+     en :root), y el número que se ve encima de cada cajón (ver bloque
+     [NUMERACIÓN VISUAL DINÁMICA] en el <style> y renderLocalNumbers() en la
+     SECCIÓN C) se calcula solo a partir de estas mismas x/y/width/height, sin
+     necesidad de pintarlo a mano en ningún rect.
+     ========================================================================= -->
+
+<header>
+  <h1>Tianguis Digital</h1>
+  <p>toca o pasa el mouse sobre un local para ver su información.</p>
+</header>
+
+<div class="filtros" id="filtros">
+</div>
+
+<!-- =========================================================================
+     [SECCIÓN A] MAPA — posición de los 16 locales (no tocar para cargar
+     info de negocio; eso va en shopsData, [SECCIÓN B], más abajo)
+     ========================================================================= -->
+<div class="map-wrap">
+  <div class="map-frame" id="mapFrame">
+    <button type="button" class="map-zoom-reset" id="mapZoomReset">✕ Restablecer zoom</button>
+    <div class="map-inner" id="mapInner">
+<img id="mapImage" src="/Prototipo" alt="Mapa del Tianguis Digital" draggable="false">
+    <svg viewBox="0 0 2160 2160" preserveAspectRatio="xMidYMid meet" id="overlaySvg">
+            <rect class="local-hitbox" data-id="local-1" x="300" y="278" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 1, pasillo 1"></rect>
+            <rect class="local-hitbox" data-id="local-2" x="578" y="278" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 2, pasillo 1"></rect>
+            <rect class="local-hitbox" data-id="local-3" x="1382" y="278" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 3, pasillo 1"></rect>
+            <rect class="local-hitbox" data-id="local-4" x="1660" y="278" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 4, pasillo 1"></rect>
+            <rect class="local-hitbox" data-id="local-5" x="300" y="762" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 5, pasillo 2"></rect>
+            <rect class="local-hitbox" data-id="local-6" x="578" y="762" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 6, pasillo 2"></rect>
+            <rect class="local-hitbox" data-id="local-7" x="1382" y="762" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 7, pasillo 2"></rect>
+            <rect class="local-hitbox" data-id="local-8" x="1660" y="762" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 8, pasillo 2"></rect>
+            <rect class="local-hitbox" data-id="local-9" x="300" y="1186" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 9, pasillo 3"></rect>
+            <rect class="local-hitbox" data-id="local-10" x="578" y="1186" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 10, pasillo 3"></rect>
+            <rect class="local-hitbox" data-id="local-11" x="1382" y="1186" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 11, pasillo 3"></rect>
+            <rect class="local-hitbox" data-id="local-12" x="1660" y="1186" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 12, pasillo 3"></rect>
+            <rect class="local-hitbox" data-id="local-13" x="300" y="1616" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 13, pasillo 4"></rect>
+            <rect class="local-hitbox" data-id="local-14" x="578" y="1616" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 14, pasillo 4"></rect>
+            <rect class="local-hitbox" data-id="local-15" x="1382" y="1616" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 15, pasillo 4"></rect>
+            <rect class="local-hitbox" data-id="local-16" x="1660" y="1616" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 16, pasillo 4"></rect>
+    </svg>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     [SECCIÓN C] LÓGICA DEL MAPA — la tarjetita al pasar el mouse (callout),
+     el modal/perfil completo, filtros, etc. Es "cómo funciona" el mapa;
+     normalmente no se toca. La información de cada local (Sección B) está
+     más abajo, dentro del <script>.
+     ========================================================================= -->
+<svg id="connectorSvg"><line id="connectorLine" x1="0" y1="0" x2="0" y2="0"></line></svg>
+
+<div id="callout">
+  <div class="callout-top">
+    <div class="callout-foto-wrap" id="callout-foto-wrap">
+      <div class="callout-foto" id="callout-foto"></div>
+      <div class="callout-plan-badge" id="callout-plan-badge"></div>
+    </div>
+    <div class="callout-info">
+      <div class="callout-numero" id="callout-numero"></div>
+      <div class="callout-nombre" id="callout-nombre"></div>
+    </div>
+  </div>
+  <div class="callout-chips" id="callout-chips"></div>
+  <button class="callout-btn" id="callout-btn">Ver perfil completo</button>
+</div>
+
+<div id="modal-backdrop">
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button id="modal-close" aria-label="Cerrar">&times;</button>
+
+    <!-- Perfil generico (se usa mientras el local no tiene "perfil_url"
+         definido en shopsData, ej. mientras no se ha capturado su
+         plantilla de plan final) -->
+    <div id="modal-generic">
+      <div id="modal-foto"></div>
+      <div id="modal-badge"></div>
+      <div id="modal-numero"></div>
+      <h2 id="modal-title"></h2>
+      <div id="modal-extra"></div>
+      <div id="modal-chips"></div>
+      <p id="modal-desc"></p>
+      <a id="modal-whatsapp" href="#" target="_blank" rel="noopener">Contactar por WhatsApp</a>
+    </div>
+
+    <!-- Perfil real del plan (Normal/Plus/Premium): cuando el local ya
+         tiene "perfil_url" en shopsData, aqui se carga tal cual esa
+         pagina, sin tocar su HTML/CSS/JS original -->
+    <iframe id="modal-iframe" title="Perfil del local" loading="lazy"></iframe>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =====================================================================
+     [SECCIÓN B] shopsData — INFORMACIÓN DE CADA LOCAL
+     Este es el único bloque que necesitas abrir seguido. Cada "local-N"
+     de aquí corresponde exactamente al <rect data-id="local-N"> de la
+     SECCIÓN A (arriba, en el mapa) — no necesitas tocar la Sección A
+     para cargar o actualizar el contenido de un negocio.
+
+     Campos por local:
+       numero, pasillo   -> ubicación (se llenan solos, no los toques)
+       nombre            -> nombre del negocio
+       categoria         -> categoría principal (debe coincidir con una
+                             de las CATEGORIAS de abajo para que el filtro
+                             funcione)
+       categorias_clave  -> lista corta de etiquetas para la tarjeta rápida
+       descripcion       -> texto largo, solo se ve en el perfil completo
+       imagen            -> URL de la foto/logo del local (circular). Si se
+                             deja vacío, se muestra un círculo con la inicial
+                             del nombre como respaldo.
+       plan              -> "normal" | "plus" | "premium"
+       vinculado_a       -> si este local es el mismo negocio que otro local
+                             (ej. una señora que renta dos puestos en pasillos
+                             distintos), pon aquí el id del local principal,
+                             ej. "local-14". Ambos mostrarán el mismo perfil.
+       whatsapp          -> número a 12-13 dígitos, sin espacios ni signos
+       mensaje           -> mensaje precargado al abrir WhatsApp
+       perfil_url        -> (opcional) ruta/URL al archivo HTML del perfil
+                             ya armado a partir de la plantilla de su plan
+                             (PlanNormal-Original.html, PlanPlus-Original.html
+                             o PlanPremium-Original.html, cada uno editado con
+                             los datos reales de ese comerciante). En cuanto
+                             un local tenga este campo, al darle clic se abre
+                             ESA página completa dentro del recuadro, tal cual
+                             como está diseñada (mismas fotos que se adaptan
+                             solas a la cantidad subida, mismo ancho de cada
+                             plan, mismo carrusel/pestañas si el plan las
+                             trae), sin mezclarse con el CSS del mapa. Si un
+                             local no tiene "perfil_url" todavía, se sigue
+                             mostrando el perfil genérico de siempre. El ancho
+                             del recuadro se ajusta solo según "plan" (normal
+                             420px, plus 820px, premium 780px) y nunca pasa de
+                             95% del ancho de pantalla, así que también se ve
+                             bien en teléfono.
+  ========================================================================= */
+  const CATEGORIAS = ["Ropa", "Comida", "Electrónicos", "Juguetes", "Accesorios", "Calzado", "Reparaciones","Hogar","Cosméticos","Equipo Táctico","Ropa Deportiva","Otros"];
+
+  const shopsData = {
+        "local-1": {
+                "numero": 1,
+                "pasillo": 1,
+                "nombre": "Tacos el loco",
+                "categoria": "Comida",
+                "categorias_clave": [
+                        "Comida"
+                ],
+                "plan": "Normal",
+        "perfil_url": "Locales/PlanNormal.html?id=local-1"
+        },
+        "local-2": {
+                "numero": 2,
+                "pasillo": 1,
+                "nombre": "Local 2",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "plan": "plus",
+        "perfil_url": "Locales/local-2.html"
+        },
+        "local-3": {
+                "numero": 3,
+                "pasillo": 1,
+                "nombre": "Local 3",
+                "categoria": "Comida",
+                "categorias_clave": [
+                        "Comida"
+                ],
+                 "plan": "premium",
+        "perfil_url": "Locales/local-3.html"
+        },
+        "local-4": {
+                "numero": 4,
+                "pasillo": 1,
+                "nombre": "Local 4",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-4/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-5": {
+                "numero": 5,
+                "pasillo": 2,
+                "nombre": "Local 5",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-5/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-6": {
+                "numero": 6,
+                "pasillo": 2,
+                "nombre": "Local 6",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-6/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-7": {
+                "numero": 7,
+                "pasillo": 2,
+                "nombre": "Local 7",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-7/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-8": {
+                "numero": 8,
+                "pasillo": 2,
+                "nombre": "Local 8",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-8/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-9": {
+                "numero": 9,
+                "pasillo": 3,
+                "nombre": "Local 9",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-9/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-10": {
+                "numero": 10,
+                "pasillo": 3,
+                "nombre": "Local 10",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-10/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-11": {
+                "numero": 11,
+                "pasillo": 3,
+                "nombre": "Local 11",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-11/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-12": {
+                "numero": 12,
+                "pasillo": 3,
+                "nombre": "Local 12",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-12/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-13": {
+                "numero": 13,
+                "pasillo": 4,
+                "nombre": "Local 13",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-13/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-14": {
+                "numero": 14,
+                "pasillo": 4,
+                "nombre": "Local 14",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-14/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-15": {
+                "numero": 15,
+                "pasillo": 4,
+                "nombre": "Local 15",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-15/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        },
+        "local-16": {
+                "numero": 16,
+                "pasillo": 4,
+                "nombre": "Local 16",
+                "categoria": "Por definir",
+                "categorias_clave": [
+                        "Por definir"
+                ],
+                "imagen": "https://picsum.photos/seed/local-16/200/200",
+                "plan": "normal",
+                "vinculado_a": null
+        }
+};
+
+  /* =====================================================================
+     ---- fin de [SECCIÓN B] --------------------------------------------
+     De aquí en adelante ya es [SECCIÓN C]: código de funcionamiento del
+     mapa (filtros, callout, modal, WhatsApp, etc.). No hace falta tocarlo
+     para dar de alta o editar un local; eso se hace arriba, en shopsData.
+     ========================================================================= */
+
+  const FALLBACK_SHOP = {
+    numero: "?", pasillo: "?",
+    nombre: "Local sin información",
+    categoria: "Sin categoría",
+    categorias_clave: [],
+    descripcion: "Todavía no hay datos capturados para este local.",
+    imagen: "", plan: "normal", vinculado_a: null,
+    whatsapp: "", mensaje: ""
+  };
+
+  /* =====================================================================
+     [PREVENCIÓN DE ERRORES] sanitizeShop()
+     ---------------------------------------------------------------------
+     Blindaje contra datos incompletos. Si en shopsData un local trae solo
+     ALGUNOS campos (ej. se te olvidó poner "descripcion" o "categoria"),
+     Object.assign rellena automáticamente cada campo faltante con su valor
+     de FALLBACK_SHOP, sin tocar los campos que sí vinieron capturados. Así
+     ninguna función de abajo (callout, modal, filtro, numeración) puede
+     tronar por un "undefined" — en el peor caso se ve "Sin categoría" o
+     "?" en vez de un error en consola o una página en blanco.
+     Se usa SIEMPRE que se lee un local: nunca se debe acceder a
+     shopsData[id] directamente fuera de esta función.
+     ========================================================================= */
+  function sanitizeShop(raw) {
+    return Object.assign({}, FALLBACK_SHOP, raw || {});
+  }
+
+  function safe(fn, label) {
+    return function () {
+      try {
+        return fn.apply(this, arguments);
+      } catch (err) {
+        console.error("[Tianguis] Error en " + (label || "handler") + ":", err);
+      }
+    };
+  }
+
+  const isTouchDevice = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+
+  const svg = document.getElementById("overlaySvg");
+  const mapFrame = document.getElementById("mapFrame");
+  const mapImage = document.getElementById("mapImage");
+
+  // ---------------------------------------------------------------------
+  // Zoom con pellizco (pinch) DENTRO del recuadro del mapa.
+  // Solo se mueve/acerca "mapInner" (la imagen + los locales); el resto
+  // de la pagina (header, filtros de categoria, etc.) se queda fijo y
+  // siempre visible, aunque el usuario este acercado al máximo.
+  // ---------------------------------------------------------------------
+  const mapInner = document.getElementById("mapInner");
+  const mapZoomReset = document.getElementById("mapZoomReset");
+  const MAP_MIN_SCALE = 1;
+  const MAP_MAX_SCALE = 4;
+
+  let mapScale = 1;
+  let mapPanX = 0;
+  let mapPanY = 0;
+  let mapTouch = null; // guarda el gesto de pellizco o arrastre en curso
+
+  function applyMapTransform() {
+    mapInner.style.transform =
+      "translate(" + mapPanX + "px," + mapPanY + "px) scale(" + mapScale + ")";
+    mapZoomReset.classList.toggle("visible", mapScale > 1.02);
+  }
+
+  function clampMapPan() {
+    const frameRect = mapFrame.getBoundingClientRect();
+    const maxX = (frameRect.width * (mapScale - 1)) / 2;
+    const maxY = (frameRect.height * (mapScale - 1)) / 2;
+    mapPanX = Math.max(-maxX, Math.min(maxX, mapPanX));
+    mapPanY = Math.max(-maxY, Math.min(maxY, mapPanY));
+  }
+
+  function resetMapZoom() {
+    mapScale = 1;
+    mapPanX = 0;
+    mapPanY = 0;
+    applyMapTransform();
+  }
+
+  function touchDist(a, b) {
+    return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+  }
+
+  mapFrame.addEventListener("touchstart", function (e) {
+    if (e.touches.length === 2) {
+      // pellizco con dos dedos: siempre lo controlamos nosotros
+      e.preventDefault();
+      mapTouch = {
+        mode: "pinch",
+        startDist: touchDist(e.touches[0], e.touches[1]) || 1,
+        startScale: mapScale,
+        startPanX: mapPanX,
+        startPanY: mapPanY
+      };
+    } else if (e.touches.length === 1 && mapScale > 1) {
+      // un dedo con el mapa ya acercado: todavia no sabemos si el usuario
+      // va a arrastrar el mapa o solo esta tocando un local, asi que NO se
+      // bloquea el toque aqui (para no impedir que abra el perfil del
+      // local). Si luego se detecta arrastre real, recien ahi se activa
+      // el desplazamiento (ver touchmove).
+      mapTouch = {
+        mode: "maybe-pan",
+        startX: e.touches[0].clientX,
+        startY: e.touches[0].clientY,
+        startPanX: mapPanX,
+        startPanY: mapPanY
+      };
+    } else {
+      // tamaño normal y un solo dedo: se deja pasar tal cual, para que
+      // sigan funcionando los toques sobre los locales y el scroll normal
+      mapTouch = null;
+    }
+  }, { passive: false });
+
+  mapFrame.addEventListener("touchmove", function (e) {
+    if (!mapTouch) return;
+    if (mapTouch.mode === "pinch" && e.touches.length === 2) {
+      e.preventDefault();
+      const factor = touchDist(e.touches[0], e.touches[1]) / mapTouch.startDist;
+      mapScale = Math.max(MAP_MIN_SCALE, Math.min(MAP_MAX_SCALE, mapTouch.startScale * factor));
+      mapPanX = mapTouch.startPanX;
+      mapPanY = mapTouch.startPanY;
+      clampMapPan();
+      applyMapTransform();
+    } else if ((mapTouch.mode === "pan" || mapTouch.mode === "maybe-pan") && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - mapTouch.startX;
+      const dy = e.touches[0].clientY - mapTouch.startY;
+      if (mapTouch.mode === "maybe-pan") {
+        // mientras el dedo no se mueva lo suficiente, se considera un
+        // simple toque (no arrastre) y se deja pasar sin bloquear nada,
+        // para que el clic sobre el local se dispare con normalidad
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        mapTouch.mode = "pan";
+      }
+      e.preventDefault();
+      mapPanX = mapTouch.startPanX + dx;
+      mapPanY = mapTouch.startPanY + dy;
+      clampMapPan();
+      applyMapTransform();
+    }
+  }, { passive: false });
+
+  function endMapTouch() {
+    if (mapTouch && mapScale <= 1.02) resetMapZoom();
+    mapTouch = null;
+  }
+  mapFrame.addEventListener("touchend", endMapTouch);
+  mapFrame.addEventListener("touchcancel", endMapTouch);
+
+  mapZoomReset.addEventListener("click", resetMapZoom);
+
+  window.addEventListener("resize", function () {
+    clampMapPan();
+    applyMapTransform();
+  });
+
+  const callout = document.getElementById("callout");
+  const calloutFotoWrap = document.getElementById("callout-foto-wrap");
+  const calloutFoto = document.getElementById("callout-foto");
+  const calloutPlanBadge = document.getElementById("callout-plan-badge");
+  const calloutNumero = document.getElementById("callout-numero");
+  const calloutNombre = document.getElementById("callout-nombre");
+  const calloutChips = document.getElementById("callout-chips");
+  const calloutBtn = document.getElementById("callout-btn");
+  const connectorSvg = document.getElementById("connectorSvg");
+  const connectorLine = document.getElementById("connectorLine");
+
+  const modalBackdrop = document.getElementById("modal-backdrop");
+  const modalEl = document.getElementById("modal");
+  const modalClose = document.getElementById("modal-close");
+  const modalGeneric = document.getElementById("modal-generic");
+  const modalIframe = document.getElementById("modal-iframe");
+
+  // Ancho ideal del perfil segun el plan del local (coincide con el ancho
+  // real de cada plantilla: Plan Normal 400px, Plan Plus 800px, Plan
+  // Premium 750px). En pantallas chicas siempre se limita a 95vw.
+  const PLAN_PROFILE_WIDTH = { normal: 420, plus: 820, premium: 780 };
+  const modalFoto = document.getElementById("modal-foto");
+  const modalBadge = document.getElementById("modal-badge");
+  const modalNumero = document.getElementById("modal-numero");
+  const modalTitle = document.getElementById("modal-title");
+  const modalExtra = document.getElementById("modal-extra");
+  const modalChips = document.getElementById("modal-chips");
+  const modalDesc = document.getElementById("modal-desc");
+  const modalWhatsapp = document.getElementById("modal-whatsapp");
+
+  let calloutOpenId = null;
+
+  // ---- resolución de locales vinculados (mismo negocio, dos puestos) ----
+  // Toda lectura de shopsData pasa por sanitizeShop(): si el local no
+  // existe, o le faltan campos, el resultado siempre trae un objeto
+  // completo y seguro de usar (ver [PREVENCIÓN DE ERRORES] arriba).
+  function resolveShop(id) {
+    const raw = shopsData[id];
+    if (!raw) return { shop: sanitizeShop(null), targetId: id };
+    if (raw.vinculado_a && shopsData[raw.vinculado_a]) {
+      return { shop: sanitizeShop(shopsData[raw.vinculado_a]), targetId: raw.vinculado_a };
+    }
+    return { shop: sanitizeShop(raw), targetId: id };
+  }
+
+  // ---------------------------------------------------------------------
+  // Distinción visual por plan en el mapa: cada hitbox recibe un atributo
+  // data-plan tomado de shopsData. El color de cada plan vive únicamente
+  // en las variables --plan-normal-fill / --plan-plus-fill / --plan-premium-fill
+  // (arriba, en :root); para agregar un local nuevo solo hace falta
+  // escribir su "plan" correcto en shopsData, sin tocar el SVG ni el CSS
+  // de cada hitbox individualmente. Los locales vinculados (vinculado_a)
+  // heredan el plan de su negocio principal, ya que representan el mismo
+  // negocio con dos puestos físicos.
+  // ---------------------------------------------------------------------
+  svg.querySelectorAll(".local-hitbox").forEach(function (el) {
+    const id = el.dataset.id;
+    const { shop } = resolveShop(id);
+    el.dataset.plan = (shop && shop.plan) || "normal";
+  });
+
+  /* =====================================================================
+     [NUMERACIÓN VISUAL DINÁMICA] renderLocalNumbers()
+     ---------------------------------------------------------------------
+     Dibuja el número físico de cada local directamente sobre el SVG, sin
+     tocar la imagen del mapa ni quemar nada a mano:
+       1. Lee x/y/width/height de cada <rect class="local-hitbox"> (las
+          mismas coordenadas de la SECCIÓN A) y calcula su centro.
+       2. Toma el campo "numero" DEL PUESTO FÍSICO (shopsData[id] tal cual,
+          antes de resolver vínculos) — así, si dos puestos comparten
+          negocio (vinculado_a), cada uno sigue mostrando SU propio número
+          en el plano, aunque el panel lateral (callout/modal) muestre la
+          info del negocio principal.
+       3. Inserta un <text class="local-number"> como hermano del rect, para
+          que el CSS ":hover + .local-number" (ver <style>) lo resalte
+          exactamente cuando el hitbox se resalta, sin JS adicional.
+     Si un rect no tiene data-id, o ese id no existe en shopsData, no truena:
+     sanitizeShop() entrega "?" como número por defecto (ver
+     [PREVENCIÓN DE ERRORES]).
+     ========================================================================= */
+  function renderLocalNumbers() {
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    svg.querySelectorAll(".local-hitbox").forEach(function (rectEl) {
+      const id = rectEl.dataset.id;
+      if (!id) return; // rect sin data-id: no se puede vincular a shopsData, se ignora
+
+      const own = sanitizeShop(shopsData[id]);
+      const x = parseFloat(rectEl.getAttribute("x")) || 0;
+      const y = parseFloat(rectEl.getAttribute("y")) || 0;
+      const w = parseFloat(rectEl.getAttribute("width")) || 0;
+      const h = parseFloat(rectEl.getAttribute("height")) || 0;
+
+      const label = document.createElementNS(SVG_NS, "text");
+      label.setAttribute("class", "local-number");
+      label.setAttribute("x", (x + w / 2).toFixed(1));
+      label.setAttribute("y", (y + h / 2).toFixed(1));
+      label.setAttribute("data-id", id);
+      label.textContent = own.numero;
+
+      rectEl.insertAdjacentElement("afterend", label);
+    });
+  }
+  renderLocalNumbers();
+
+  function initials(name) {
+    return (name || "?").trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  }
+
+  function setFotoEl(el, shop, size) {
+    el.style.backgroundImage = "none";
+    el.textContent = initials(shop.nombre);
+    if (shop.imagen) {
+      const test = new Image();
+      test.onload = function () {
+        el.style.backgroundImage = "url(" + shop.imagen + ")";
+        el.textContent = "";
+      };
+      test.onerror = function () {
+        el.style.backgroundImage = "none";
+        el.textContent = initials(shop.nombre);
+      };
+      test.src = shop.imagen;
+    }
+  }
+
+  // ---- Tarjeta flotante (callout) ----
+  function positionCallout(hitboxEl) {
+    const frameRect = mapFrame.getBoundingClientRect();
+    const boxRect = hitboxEl.getBoundingClientRect();
+    const anchorX = boxRect.left + boxRect.width / 2;
+    const anchorY = boxRect.top;
+
+    const calloutW = callout.offsetWidth || 260;
+    const calloutH = callout.offsetHeight || 140;
+
+    let left = anchorX - calloutW / 2;
+    left = Math.max(10, Math.min(left, window.innerWidth - calloutW - 10));
+
+    let top = anchorY - calloutH - 12;
+    let lineY2 = top + calloutH;
+    if (top < 10) {
+      // si no cabe arriba, se coloca abajo del local
+      top = boxRect.bottom + 12;
+      lineY2 = top;
+    }
+
+    callout.style.left = Math.round(left) + "px";
+    callout.style.top = Math.round(top) + "px";
+
+    connectorLine.setAttribute("x1", Math.round(anchorX));
+    connectorLine.setAttribute("y1", Math.round(anchorY));
+    connectorLine.setAttribute("x2", Math.round(anchorX));
+    connectorLine.setAttribute("y2", Math.round(lineY2));
+    // la linea conectora ya no se muestra (se quito el trazo hacia el local);
+    // la tarjeta ahora se posiciona pegada al local sin necesidad de guia visual
+  }
+
+  function showCallout(hitboxEl, id) {
+    const { shop, targetId } = resolveShop(id);
+    // Datos "propios" del puesto que se tocó (sin resolver el vínculo):
+    // número, pasillo y foto se muestran del puesto físico real, aunque el
+    // resto de la información (nombre, categorías, WhatsApp, perfil) venga
+    // del local principal vinculado.
+    const own = shopsData[id] || shop;
+
+    document.querySelectorAll(".local-hitbox.is-open").forEach(function (el) {
+      el.classList.remove("is-open");
+    });
+    hitboxEl.classList.add("is-open");
+    // si esta vinculado, tambien resalta el otro puesto del mismo negocio
+    if (shop && targetId) {
+      document.querySelectorAll('.local-hitbox[data-id="' + targetId + '"]').forEach(function (el) {
+        el.classList.add("is-open");
+      });
+      Object.keys(shopsData).forEach(function (otherId) {
+        if (shopsData[otherId].vinculado_a === targetId) {
+          const el = svg.querySelector('.local-hitbox[data-id="' + otherId + '"]');
+          if (el) el.classList.add("is-open");
+        }
+      });
+    }
+
+    calloutNumero.textContent = "Local " + own.numero + " · Pasillo " + own.pasillo;
+    calloutNombre.textContent = shop.nombre;
+    // La foto es la del puesto físico (own); si no tiene nombre propio
+    // (porque se dejó solo con numero/pasillo/imagen/vinculado_a), se usan
+    // las iniciales del negocio principal como respaldo.
+    setFotoEl(calloutFoto, { imagen: own.imagen, nombre: own.nombre || shop.nombre }, 64);
+    // El anillo de color y la insignia (estrella/corona) del avatar
+    // reflejan el plan del negocio principal, igual que el hitbox del mapa.
+    const planActual = shop.plan || "normal";
+    calloutFotoWrap.dataset.plan = planActual;
+    calloutPlanBadge.textContent = planActual === "premium" ? "👑" : planActual === "plus" ? "⭐" : "";
+    calloutChips.innerHTML = "";
+    (shop.categorias_clave || []).slice(0, 3).forEach(function (cat) {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = cat;
+      calloutChips.appendChild(span);
+    });
+
+    callout.classList.add("visible");
+    calloutOpenId = id;
+    calloutBtn.onclick = function () { openModal(id); };
+
+    positionCallout(hitboxEl);
+  }
+
+  function hideCallout() {
+    callout.classList.remove("visible");
+    document.querySelectorAll(".local-hitbox.is-open").forEach(function (el) {
+      el.classList.remove("is-open");
+    });
+    calloutOpenId = null;
+  }
+
+  // ---- Modal (perfil completo) ----
+  function openModal(id) {
+    const { shop } = resolveShop(id);
+
+    // Si el local ya tiene su pagina de perfil definitiva (plan Normal,
+    // Plus o Premium) capturada en "perfil_url", se muestra esa pagina
+    // completa dentro de un iframe, tal cual esta diseñada, ajustando
+    // solo el ancho del recuadro segun el plan. Si todavia no la tiene,
+    // se usa el perfil generico de siempre.
+    if (shop.perfil_url) {
+      const ancho = PLAN_PROFILE_WIDTH[shop.plan] || 500;
+      modalEl.style.setProperty("--modal-iframe-w", ancho + "px");
+      modalEl.classList.add("modal--iframe");
+      modalIframe.src = shop.perfil_url;
+
+      hideCallout();
+      modalBackdrop.classList.add("open");
+      document.body.classList.add("modal-open");
+      return;
+    }
+    modalEl.classList.remove("modal--iframe");
+
+    modalBadge.className = "";
+    if (shop.plan === "plus") {
+      modalBadge.textContent = "Plus";
+      modalBadge.classList.add("plan-plus");
+    } else {
+      modalBadge.textContent = "";
+    }
+
+    modalNumero.textContent = "Local " + shop.numero + " · Pasillo " + shop.pasillo;
+    modalTitle.textContent = shop.nombre || "Local";
+    setFotoEl(modalFoto, shop, 96);
+
+    modalChips.innerHTML = "";
+    (shop.categorias_clave || []).forEach(function (cat) {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = cat;
+      modalChips.appendChild(span);
+    });
+
+    modalDesc.textContent = shop.descripcion || "";
+
+    // campos extra personalizados (cualquier propiedad adicional que el
+    // dueño quiera mostrar, ej. horario, redes sociales, promociones)
+    modalExtra.innerHTML = "";
+    if (shop.extra && Object.keys(shop.extra).length) {
+      Object.entries(shop.extra).forEach(function ([label, valor]) {
+        const p = document.createElement("p");
+        p.innerHTML = "<strong>" + label + ":</strong> " + valor;
+        modalExtra.appendChild(p);
+      });
+      modalExtra.classList.add("visible");
+    } else {
+      modalExtra.classList.remove("visible");
+    }
+
+    if (shop.whatsapp) {
+      const msg = encodeURIComponent(shop.mensaje || ("Hola, me interesa el local " + shop.nombre));
+      modalWhatsapp.href = "https://wa.me/" + shop.whatsapp + "?text=" + msg;
+      modalWhatsapp.style.display = "flex";
+    } else {
+      modalWhatsapp.style.display = "none";
+    }
+
+    hideCallout();
+    modalBackdrop.classList.add("open");
+    document.body.classList.add("modal-open");
+  }
+
+  function closeModal() {
+    modalBackdrop.classList.remove("open");
+    document.body.classList.remove("modal-open");
+    // se limpia el iframe al cerrar para liberar memoria y detener
+    // cualquier reproduccion (video, mapa, carrusel automatico, etc.)
+    modalIframe.src = "about:blank";
+    modalEl.classList.remove("modal--iframe");
+  }
+
+  modalClose.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", function (e) {
+    if (e.target === modalBackdrop) closeModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (modalBackdrop.classList.contains("open")) closeModal();
+    else if (calloutOpenId) hideCallout();
+  });
+
+  // ---- Eventos delegados sobre el SVG (funciona para los 16 locales) ----
+  // Cada listener va envuelto en safe(): si algún local llegara a tener un
+  // dato tan inesperado que rompa una función (aunque sanitizeShop ya
+  // cubre los casos normales de campos faltantes), el error se registra en
+  // consola con console.error en vez de dejar el mapa entero sin responder.
+  svg.addEventListener("mouseover", safe(function (e) {
+    if (isTouchDevice) return;
+    const target = e.target.closest(".local-hitbox");
+    if (!target) return;
+    showCallout(target, target.dataset.id);
+  }, "mouseover del mapa"));
+
+  svg.addEventListener("mouseout", safe(function (e) {
+    if (isTouchDevice) return;
+    const target = e.target.closest(".local-hitbox");
+    if (!target) return;
+    hideCallout();
+  }, "mouseout del mapa"));
+
+  svg.addEventListener("click", safe(function (e) {
+    const target = e.target.closest(".local-hitbox");
+    if (!target) return;
+    if (isTouchDevice) {
+      // primer toque: muestra tarjeta rapida. segundo toque sobre el mismo
+      // local: abre el perfil completo directamente.
+      if (calloutOpenId === target.dataset.id) {
+        openModal(target.dataset.id);
+      } else {
+        showCallout(target, target.dataset.id);
+      }
+    } else {
+      openModal(target.dataset.id);
+    }
+  }, "click del mapa"));
+
+  svg.addEventListener("keydown", safe(function (e) {
+    const target = e.target.closest(".local-hitbox");
+    if (!target) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openModal(target.dataset.id);
+    }
+  }, "teclado del mapa"));
+
+  // cerrar la tarjeta si se toca/hace clic fuera de ella y fuera del mapa
+  document.addEventListener("click", function (e) {
+    if (!calloutOpenId) return;
+    if (callout.contains(e.target)) return;
+    if (e.target.closest(".local-hitbox")) return;
+    hideCallout();
+  });
+
+  // reposicionar la tarjeta si cambia el tamaño de ventana o hace scroll
+  window.addEventListener("resize", function () {
+    if (!calloutOpenId) return;
+    const el = svg.querySelector('.local-hitbox[data-id="' + calloutOpenId + '"]');
+    if (el) positionCallout(el);
+  });
+  window.addEventListener("scroll", function () {
+    if (!calloutOpenId) return;
+    const el = svg.querySelector('.local-hitbox[data-id="' + calloutOpenId + '"]');
+    if (el) positionCallout(el);
+  }, { passive: true });
+
+  // ---- Fallback si la imagen de fondo no carga ----
+  mapImage.addEventListener("error", function () {
+    mapFrame.innerHTML =
+      '<div style="padding:60px 20px;text-align:center;color:#857F76;">' +
+      'No se pudo cargar la imagen del mapa (mapa-tianguis.png).<br>' +
+      'Verifica que el archivo esté en la misma carpeta que este HTML.' +
+      "</div>";
+  });
+
+  // ---- Filtro de categorías ----
+  const filtrosWrap = document.getElementById("filtros");
+  CATEGORIAS.forEach(function (cat) {
+    const btn = document.createElement("button");
+    btn.className = "filtro-btn";
+    btn.dataset.cat = cat;
+    btn.textContent = cat;
+    filtrosWrap.appendChild(btn);
+  });
+
+  filtrosWrap.addEventListener("click", safe(function (e) {
+    const btn = e.target.closest(".filtro-btn");
+    if (!btn) return;
+
+    const cat = btn.dataset.cat;
+    const yaEstabaActivo = btn.classList.contains("activo");
+    const hitboxes = svg.querySelectorAll(".local-hitbox");
+
+    filtrosWrap.querySelectorAll(".filtro-btn").forEach(function (b) {
+      b.classList.remove("activo");
+    });
+
+    if (yaEstabaActivo) {
+      // se volvió a dar clic sobre la categoría ya activa -> se quita el filtro
+      hitboxes.forEach(function (el) {
+        el.classList.remove("dim", "match");
+      });
+      return;
+    }
+
+    btn.classList.add("activo");
+
+    // Categorías "principales" reales (todo lo que no sea el propio botón
+    // "Otros"). Cualquier local cuya categoría NO esté en esta lista se
+    // considera automáticamente parte de "Otros", sin necesidad de que en
+    // shopsData diga literalmente categoria: "Otros".
+    const categoriasPrincipales = CATEGORIAS.filter(function (c) { return c !== "Otros"; });
+
+    hitboxes.forEach(function (el) {
+      // sanitizeShop() asegura que "categoria" siempre exista (con
+      // "Sin categoría" de respaldo) aunque el local no esté en shopsData
+      // o le falte ese campo, para que el filtro nunca truene.
+      const shop = sanitizeShop(shopsData[el.dataset.id]);
+      const coincide = cat === "Otros"
+        ? !categoriasPrincipales.includes(shop.categoria)
+        : shop.categoria === cat;
+      el.classList.toggle("match", coincide);
+      el.classList.toggle("dim", !coincide);
+    });
+   }, "filtro de categorías"));
+
+  /* =====================================================================
+     [DATOS EN VIVO · SUPABASE]
+     ---------------------------------------------------------------------
+     Al abrir el mapa se piden los datos a Supabase y se actualizan en
+     caliente sobre shopsData. Lo que esté escrito arriba en shopsData
+     queda como RESPALDO si no hay conexión o si Supabase responde con
+     campos vacíos.
+
+     Con esto, cuando un locatario edita sus categorías en su panel, el
+     mapa (callout + filtros) lo refleja sin tocar el código. Los campos
+     que se sincronizan:
+       - nombre            → nombre del negocio
+       - categoria         → categoría principal (una sola) → filtros
+       - categoria_clave   → array de etiquetas → chips del callout
+       - descripcion       → texto largo
+       - whatsapp          → número
+       - mensaje           → mensaje precargado de WhatsApp
+       - imagen            → foto/logo circular
+       - plan              → normal / plus / premium
+       - perfil_url        → ruta al HTML del perfil
+     ===================================================================== */
+  (function cargarDesdeSupabase() {
+    var SB_URL = 'https://vjzbuxparhndkepfmhlt.supabase.co';
+    var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqemJ1eHBhcmhuZGtlcGZtaGx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5OTM2MjEsImV4cCI6MjEwNjU2OTYyMX0.vFRBR-CnVZ6RrEpXk8QkFq1shOCkJ-K0UZOkh8P8Z78';
+    var PERFIL_OK = /^Locales\/[A-Za-z0-9_.-]+\.html(\?id=local-\d+)?$/;
+
+    fetch(SB_URL + '/rest/v1/locales?select=id,nombre,categoria,categoria_clave,descripcion,whatsapp,mensaje,imagen,plan,perfil_url',
+          { headers: { apikey: SB_KEY } })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (rows) {
+        rows.forEach(function (row) {
+          var s = shopsData[row.id];
+          if (!s) return; // local que no está en el mapa: se ignora
+
+          // Campos de texto simples (solo sobrescribir si trae algo)
+          ['nombre', 'categoria', 'descripcion', 'mensaje'].forEach(function (k) {
+            if (typeof row[k] === 'string' && row[k].trim()) s[k] = row[k];
+          });
+
+          // categoria_clave: array de strings → chips del callout
+          if (Array.isArray(row.categoria_clave) && row.categoria_clave.length) {
+            var limpias = row.categoria_clave.filter(function (c) {
+              return typeof c === 'string' && c.trim() !== '';
+            });
+            if (limpias.length) s.categorias_clave = limpias;
+          }
+
+          // WhatsApp: solo dígitos, 10 a 15
+          if (/^\d{10,15}$/.test(row.whatsapp || '')) s.whatsapp = row.whatsapp;
+
+          // Imagen y perfil: solo https válido
+          if (/^https:\/\//i.test(row.imagen || '')) s.imagen = row.imagen;
+          if (PERFIL_OK.test(row.perfil_url || '')) s.perfil_url = row.perfil_url;
+
+          // Plan: normalizar a minúsculas y refrescar el color del hitbox
+          if (row.plan) {
+            s.plan = String(row.plan).toLowerCase();
+            var hb = document.querySelector('.local-hitbox[data-id="' + row.id + '"]');
+            if (hb) hb.dataset.plan = s.plan;
+          }
+        });
+      })
+      .catch(function (e) {
+        console.warn('[Tianguis] No se pudieron cargar los datos en vivo desde Supabase. Se usa el respaldo del HTML.', e);
+      });
+  })();
+})();
+</script>
+<footer class="disclaimer-container">
+  <p class="disclaimer-text">
+    <strong>Aviso de dimensiones y representación:</strong> El plano digital del recinto es una representación ilustrativa. Las proporciones y ubicaciones no son definitivas, por lo que el diseño está sujeto a cambios estructurales sin previo aviso.
+  </p>
+</footer>
+</body>
+</html>
