@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -317,6 +317,43 @@
   }
   .local-hitbox.dim + .local-number { opacity: 0.18; }
 
+
+  /* =====================================================================
+     [ESTADOS DE LOCAL] Color + icono según "estado" (activo / renta / ...)
+     ---------------------------------------------------------------------
+     El color y el icono de cada estado se definen en UN solo lugar: el
+     objeto ESTADOS del <script> (justo arriba de shopsData). Aquí solo hay
+     reglas genéricas que sirven para CUALQUIER estado nuevo que agregues,
+     así que no hay que tocar este CSS al crear un estado más.
+     "activo" no pinta nada (el local se ve normal, como siempre).
+     ===================================================================== */
+  svg .local-hitbox[data-estado] {
+    fill: var(--estado-fill);
+    stroke: var(--estado-fill);
+    fill-opacity: 1;
+    stroke-opacity: 1;
+  }
+  svg .local-hitbox[data-estado]:hover,
+  svg .local-hitbox[data-estado]:focus-visible,
+  svg .local-hitbox[data-estado].is-open,
+  svg .local-hitbox[data-estado].match {
+    fill-opacity: 1;
+    stroke-opacity: 1;
+  }
+  .local-hitbox[data-estado] + .local-number { fill: #fff; opacity: 0.95; }
+  .local-hitbox.dim[data-estado] + .local-number { opacity: 0.18; }
+  .local-estado-icon {
+    font-size: 64px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    user-select: none;
+    transition: opacity 0.15s ease;
+  }
+  .local-hitbox.dim + .local-number + .local-estado-icon { opacity: 0.18; }
+  /* insignia del avatar del callout para locales con estado especial */
+  .callout-foto-wrap[data-estado] .callout-plan-badge { display: flex; }
+
   /* ---- Tarjeta flotante (callout) con linea conectora ---- */
   #connectorSvg {
     position: fixed;
@@ -619,31 +656,24 @@
   <div class="map-frame" id="mapFrame">
     <button type="button" class="map-zoom-reset" id="mapZoomReset">✕ Restablecer zoom</button>
     <div class="map-inner" id="mapInner">
-<img id="mapImage" src="Prototipo.png" alt="Mapa del Tianguis Digital" draggable="false">
-           <svg viewBox="0 0 2160 2160" preserveAspectRatio="xMidYMid meet" id="overlaySvg">
-            <!-- Fila 1 -->
-            <rect class="local-hitbox" data-id="local-1"  x="295"  y="276"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 1, pasillo 1"></rect>
-            <rect class="local-hitbox" data-id="local-2"  x="572"  y="276"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 2, pasillo 1"></rect>
-            <rect class="local-hitbox" data-id="local-3"  x="1375" y="276"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 3, pasillo 1"></rect>
-            <rect class="local-hitbox" data-id="local-4"  x="1652" y="276"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 4, pasillo 1"></rect>
-            
-            <!-- Fila 2 -->
-            <rect class="local-hitbox" data-id="local-5"  x="295"  y="740"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 5, pasillo 2"></rect>
-            <rect class="local-hitbox" data-id="local-6"  x="572"  y="740"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 6, pasillo 2"></rect>
-            <rect class="local-hitbox" data-id="local-7"  x="1375" y="740"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 7, pasillo 2"></rect>
-            <rect class="local-hitbox" data-id="local-8"  x="1652" y="740"  width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 8, pasillo 2"></rect>
-            
-            <!-- Fila 3 -->
-            <rect class="local-hitbox" data-id="local-9"  x="295"  y="1204" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 9, pasillo 3"></rect>
-            <rect class="local-hitbox" data-id="local-10" x="572"  y="1204" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 10, pasillo 3"></rect>
-            <rect class="local-hitbox" data-id="local-11" x="1375" y="1204" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 11, pasillo 3"></rect>
-            <rect class="local-hitbox" data-id="local-12" x="1652" y="1204" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 12, pasillo 3"></rect>
-            
-            <!-- Fila 4 -->
-            <rect class="local-hitbox" data-id="local-13" x="295"  y="1668" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 13, pasillo 4"></rect>
-            <rect class="local-hitbox" data-id="local-14" x="572"  y="1668" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 14, pasillo 4"></rect>
-            <rect class="local-hitbox" data-id="local-15" x="1375" y="1668" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 15, pasillo 4"></rect>
-            <rect class="local-hitbox" data-id="local-16" x="1652" y="1668" width="212" height="212" rx="14" tabindex="0" role="button" aria-label="Local 16, pasillo 4"></rect>
+<img id="mapImage" src="/TianguisDigital.png" alt="Mapa del Tianguis Digital" draggable="false">
+    <svg viewBox="0 0 2160 2160" preserveAspectRatio="xMidYMid meet" id="overlaySvg">
+            <rect class="local-hitbox" data-id="local-1" x="294" y="258" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 1"></rect>
+            <rect class="local-hitbox" data-id="local-2" x="574" y="258" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 2"></rect>
+            <rect class="local-hitbox" data-id="local-3" x="1376" y="290" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 3"></rect>
+            <rect class="local-hitbox" data-id="local-4" x="1634" y="290" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 4"></rect>
+            <rect class="local-hitbox" data-id="local-5" x="294" y="750" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 5"></rect>
+            <rect class="local-hitbox" data-id="local-6" x="574" y="750" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 6"></rect>
+            <rect class="local-hitbox" data-id="local-7" x="1376" y="782" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 7"></rect>
+            <rect class="local-hitbox" data-id="local-8" x="1634" y="782" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 8"></rect>
+            <rect class="local-hitbox" data-id="local-9" x="294" y="1196" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 9"></rect>
+            <rect class="local-hitbox" data-id="local-10" x="574" y="1196" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 10"></rect>
+            <rect class="local-hitbox" data-id="local-11" x="1376" y="1196" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 11"></rect>
+            <rect class="local-hitbox" data-id="local-12" x="1634" y="1196" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 12"></rect>
+            <rect class="local-hitbox" data-id="local-13" x="294" y="1586" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 13"></rect>
+            <rect class="local-hitbox" data-id="local-14" x="574" y="1586" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 14"></rect>
+            <rect class="local-hitbox" data-id="local-15" x="1376" y="1586" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 15"></rect>
+            <rect class="local-hitbox" data-id="local-16" x="1634" y="1586" width="210" height="210" rx="14" tabindex="0" role="button" aria-label="Local 16"></rect>
     </svg>
     </div>
   </div>
@@ -746,6 +776,27 @@
   ========================================================================= */
   const CATEGORIAS = ["Ropa", "Comida", "Electrónicos", "Juguetes", "Accesorios", "Calzado", "Reparaciones","Hogar","Cosméticos","Equipo Táctico","Ropa Deportiva","Otros"];
 
+  /* =====================================================================
+     [ESTADOS DE LOCAL] — cómo cambiar el color / icono de un local
+     ---------------------------------------------------------------------
+     Cada local puede traer el campo  "estado"  en shopsData:
+        "estado": "renta"     -> sale en gris con el icono de renta
+        (sin el campo, o "activo") -> sale normal, como siempre
+     Para CAMBIAR un local de estado: solo cambia esa palabra en su bloque
+     de shopsData (ej. local-10: "estado": "renta"  ->  borra la línea).
+     Para CAMBIAR el color o el icono de un estado: edítalo aquí abajo.
+     Para AGREGAR un tercer estado: copia una línea de abajo, ponle otro
+     nombre (ej. "reservado"), su color e icono, y úsalo en el local.
+     Nota: para que el color se vea al 100% desde código, lo ideal es que
+     la imagen del mapa tenga todos los cuadros en blanco (el gris lo pone
+     el SVG).
+     ========================================================================= */
+  const ESTADOS = {
+    activo:  { etiqueta: "Activo",   icono: "",   color: null },
+    renta:   { etiqueta: "En renta", icono: "🏷️", color: "#9EA3AF" }
+    // reservado: { etiqueta: "Reservado", icono: "🔒", color: "#E7C46A" },  // <- ejemplo de tercer estado
+  };
+
   const shopsData = {
         "local-1": {
                 "numero": 1,
@@ -784,9 +835,9 @@
                 "numero": 4,
                 "pasillo": 1,
                 "nombre": "Local 4",
-                "categoria": "Por definir",
+                "categoria": "Ropa",
                 "categorias_clave": [
-                        "Por definir"
+                        "Ropa"
                 ],
                 "imagen": "https://picsum.photos/seed/local-4/200/200",
                 "plan": "normal",
@@ -794,7 +845,7 @@
         },
         "local-5": {
                 "numero": 5,
-                "pasillo": 2,
+                "pasillo": 1,
                 "nombre": "Local 5",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -806,7 +857,7 @@
         },
         "local-6": {
                 "numero": 6,
-                "pasillo": 2,
+                "pasillo": 1,
                 "nombre": "Local 6",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -818,7 +869,7 @@
         },
         "local-7": {
                 "numero": 7,
-                "pasillo": 2,
+                "pasillo": 1,
                 "nombre": "Local 7",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -830,7 +881,7 @@
         },
         "local-8": {
                 "numero": 8,
-                "pasillo": 2,
+                "pasillo": 1,
                 "nombre": "Local 8",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -842,7 +893,7 @@
         },
         "local-9": {
                 "numero": 9,
-                "pasillo": 3,
+                "pasillo": 1,
                 "nombre": "Local 9",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -853,8 +904,9 @@
                 "vinculado_a": null
         },
         "local-10": {
+                "estado": "renta",
                 "numero": 10,
-                "pasillo": 3,
+                "pasillo": 1,
                 "nombre": "Local 10",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -865,8 +917,9 @@
                 "vinculado_a": null
         },
         "local-11": {
+                "estado": "renta",
                 "numero": 11,
-                "pasillo": 3,
+                "pasillo": 1,
                 "nombre": "Local 11",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -878,7 +931,7 @@
         },
         "local-12": {
                 "numero": 12,
-                "pasillo": 3,
+                "pasillo": 1,
                 "nombre": "Local 12",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -890,7 +943,7 @@
         },
         "local-13": {
                 "numero": 13,
-                "pasillo": 4,
+                "pasillo": 1,
                 "nombre": "Local 13",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -902,7 +955,7 @@
         },
         "local-14": {
                 "numero": 14,
-                "pasillo": 4,
+                "pasillo": 1,
                 "nombre": "Local 14",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -914,7 +967,7 @@
         },
         "local-15": {
                 "numero": 15,
-                "pasillo": 4,
+                "pasillo": 1,
                 "nombre": "Local 15",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -926,7 +979,7 @@
         },
         "local-16": {
                 "numero": 16,
-                "pasillo": 4,
+                "pasillo": 1,
                 "nombre": "Local 16",
                 "categoria": "Por definir",
                 "categorias_clave": [
@@ -951,7 +1004,7 @@
     categoria: "Sin categoría",
     categorias_clave: [],
     descripcion: "Todavía no hay datos capturados para este local.",
-    imagen: "", plan: "normal", vinculado_a: null,
+    imagen: "", plan: "normal", estado: "activo", vinculado_a: null,
     whatsapp: "", mensaje: ""
   };
 
@@ -1206,6 +1259,40 @@
   }
   renderLocalNumbers();
 
+  /* [ESTADOS DE LOCAL] renderEstados()
+     Lee "estado" de cada local en shopsData y, si no es "activo", pinta el
+     hitbox con el color de ESTADOS (vía data-estado + --estado-fill) y
+     agrega el icono encima del número. Es el único código que hay que
+     tocar si algún día cambia la forma de dibujar estados. */
+  function renderEstados() {
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    svg.querySelectorAll(".local-hitbox").forEach(function (rectEl) {
+      const id = rectEl.dataset.id;
+      const key = (shopsData[id] && shopsData[id].estado) || "activo";
+      const est = ESTADOS[key];
+      if (!est || !est.color) return; // activo o estado desconocido: se ve normal
+
+      rectEl.dataset.estado = key;
+      rectEl.style.setProperty("--estado-fill", est.color);
+
+      const num = rectEl.nextElementSibling; // el <text class="local-number">
+      const cx = parseFloat(rectEl.getAttribute("x")) + parseFloat(rectEl.getAttribute("width")) / 2;
+      const cy = parseFloat(rectEl.getAttribute("y")) + parseFloat(rectEl.getAttribute("height")) / 2;
+      if (num && num.classList.contains("local-number")) {
+        num.setAttribute("y", (cy + 52).toFixed(1)); // el número baja para dejar lugar al icono
+        if (est.icono) {
+          const icon = document.createElementNS(SVG_NS, "text");
+          icon.setAttribute("class", "local-estado-icon");
+          icon.setAttribute("x", cx.toFixed(1));
+          icon.setAttribute("y", (cy - 25).toFixed(1));
+          icon.textContent = est.icono;
+          num.insertAdjacentElement("afterend", icon);
+        }
+      }
+    });
+  }
+  renderEstados();
+
   function initials(name) {
     return (name || "?").trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
   }
@@ -1284,7 +1371,8 @@
       });
     }
 
-    calloutNumero.textContent = "Local " + own.numero + " · Pasillo " + own.pasillo;
+    calloutNumero.textContent = "Local " + own.numero + " · Pasillo " + own.pasillo +
+      (ESTADOS[own.estado] && ESTADOS[own.estado].color ? " · " + ESTADOS[own.estado].etiqueta : "");
     calloutNombre.textContent = shop.nombre;
     // La foto es la del puesto físico (own); si no tiene nombre propio
     // (porque se dejó solo con numero/pasillo/imagen/vinculado_a), se usan
@@ -1295,6 +1383,17 @@
     const planActual = shop.plan || "normal";
     calloutFotoWrap.dataset.plan = planActual;
     calloutPlanBadge.textContent = planActual === "premium" ? "👑" : planActual === "plus" ? "⭐" : "";
+    // Si el puesto tiene un estado especial (ej. renta), la insignia del
+    // avatar muestra el icono de ese estado.
+    const estCfg = ESTADOS[own.estado];
+    if (estCfg && estCfg.color) {
+      calloutFotoWrap.dataset.estado = own.estado;
+      calloutPlanBadge.textContent = estCfg.icono;
+      calloutPlanBadge.style.background = estCfg.color;
+    } else {
+      calloutFotoWrap.removeAttribute("data-estado");
+      calloutPlanBadge.style.background = "";
+    }
     calloutChips.innerHTML = "";
     (shop.categorias_clave || []).slice(0, 3).forEach(function (cat) {
       const span = document.createElement("span");
@@ -1610,3 +1709,13 @@
 </footer>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
