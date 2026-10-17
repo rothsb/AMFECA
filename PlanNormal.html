@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tianguis Digital - Plan Normal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --avatar-border-color: #ffffff;
+      --block-gap: 15px;
+      --photo-gap: 8px;
+      --photo-height-main: 90px;
+      --photo-height-small: 75px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #faf8f5;
+      color: #2c2c2c;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .plan-card-container {
+      width: 100%;
+      max-width: 400px;
+      background: #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+      border: 1px solid #f0e6f6;
+    }
+
+    .card-header-bg {
+      height: 90px;
+      background-color: #d7ccc8;
+      background-size: cover;
+      background-position: center;
+    }
+    .card-avatar-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: -35px;
+    }
+    .card-avatar {
+      width: 75px;
+      height: 75px;
+      border-radius: 50%;
+      border: 4px solid var(--avatar-border-color);
+      object-fit: cover;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .card-body {
+      padding: 15px 20px 20px;
+      text-align: center;
+    }
+    .card-body > * + * { margin-top: var(--block-gap); }
+    .card-body > .category-tags + .card-title { margin-top: 8px; }
+    .card-body > .card-title + .card-desc { margin-top: 6px; }
+
+    .category-tags {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .category-tag {
+      background: #efebe9;
+      color: #4e342e;
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #333;
+      margin: 0;
+    }
+    .card-desc {
+      font-size: 0.85rem;
+      color: #666;
+      margin: 0;
+      white-space: pre-wrap;   /* respeta saltos de línea */
+    }
+    .footer-info {
+      background: #fafafa;
+      color: #666;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: var(--photo-gap);
+    }
+    .photo-thumb {
+      grid-column: span 3;
+      height: var(--photo-height-small);
+      padding: 0;
+      border: 0;
+      background: #f5f5f5;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .photo-thumb:first-child {
+      grid-column: span 6;
+      height: var(--photo-height-main);
+    }
+    .photo-grid[data-count="2"] .photo-thumb {
+      grid-column: span 3;
+      height: var(--photo-height-main);
+    }
+    .photo-grid[data-count="4"] .photo-thumb:not(:first-child) {
+      grid-column: span 2;
+    }
+
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-overlay img {
+      max-width: 100%;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .lightbox-close {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 46px;
+      height: 46px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: #fff;
+      font-family: inherit;
+      font-size: 1.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MODO EDICIÓN
+       ═══════════════════════════════════════════════════════════════ */
+    .edit-toolbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: #1f1f1f;
+      color: #fff;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .edit-toolbar[hidden] { display: none; }
+    .edit-toolbar .tag {
+      background: #FF6F59;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .edit-toolbar .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .edit-toolbar a,
+    .edit-toolbar button {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+      transition: background 0.15s ease, opacity 0.15s ease;
+    }
+    .edit-toolbar a:hover,
+    .edit-toolbar button:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
+
+    .edit-toolbar button#btnGuardar {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.12);
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .edit-toolbar button#btnGuardar.dirty {
+      background: #FF6F59;
+      border-color: #FF6F59;
+      opacity: 1;
+      cursor: pointer;
+    }
+    .edit-toolbar button#btnGuardar.dirty:hover {
+      filter: brightness(1.1);
+    }
+    .edit-toolbar button#btnGuardar.saving {
+      background: #6b6b6b;
+      border-color: #6b6b6b;
+      opacity: 1;
+      cursor: wait;
+    }
+
+    body.edit-mode {
+      padding-top: 60px;
+    }
+
+    body.edit-mode .editable {
+      outline: 2px dashed rgba(255,111,89,0.35);
+      outline-offset: 4px;
+      border-radius: 6px;
+      cursor: text;
+      transition: outline-color 0.2s ease, background-color 0.2s ease;
+    }
+    body.edit-mode .editable:hover {
+      outline-color: rgba(255,111,89,0.7);
+      background-color: rgba(255,111,89,0.04);
+    }
+    body.edit-mode .editable:focus {
+      outline: 2px solid #FF6F59;
+      outline-offset: 4px;
+      background-color: rgba(255,111,89,0.06);
+    }
+    body.edit-mode .editable.modificado {
+      outline-color: #FF6F59;
+      background-color: rgba(255,111,89,0.08);
+    }
+
+    /* Estilos para las categorías editables */
+/* Estilos para las categorías editables */
+body.edit-mode .category-tag {
+  outline: 2px dashed rgba(255,111,89,0.35);
+  outline-offset: 2px;
+  cursor: text;
+  padding-right: 22px;
+}
+body.edit-mode .category-tag:hover {
+  outline-color: rgba(255,111,89,0.7);
+}
+body.edit-mode .category-tag:focus {
+  outline: 2px solid #FF6F59;
+  background-color: rgba(255,111,89,0.06);
+}
+
+.category-tag-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.category-tag-wrap .tag-delete {
+  display: none;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e74c3c;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  padding: 0;
+  font-family: inherit;
+}
+body.edit-mode .category-tag-wrap .tag-delete { display: flex; }
+.category-tag-wrap .tag-delete:hover { background: #c0392b; }
+
+.add-category-btn {
+  display: none;
+  background: transparent;
+  border: 2px dashed #FF6F59;
+  color: #FF6F59;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+}
+body.edit-mode .add-category-btn { display: inline-block; }
+.add-category-btn:hover { background: rgba(255,111,89,0.08); }
+
+    .save-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #25d366;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 99999;
+      pointer-events: none;
+    }
+    .save-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .save-toast.error { background: #e74c3c; }
+  </style>
+</head>
+<body>
+
+  <div class="edit-toolbar" id="editToolbar" hidden>
+    <span><span class="tag">Modo edición</span></span>
+    <div class="actions">
+      <button type="button" id="btnGuardar" disabled>Guardar cambios</button>
+      <a id="btnVistaPrevia" href="#">Vista de visitante</a>
+     <a href="/panel.html">Salir</a>
+    </div>
+  </div>
+
+  <div class="save-toast" id="saveToast">Guardado ✓</div>
+
+  <div class="plan-card-container">
+    <div class="card-header-bg" id="headerBg"></div>
+    <div class="card-avatar-wrap" id="avatarWrap">
+      <img class="card-avatar" id="avatarImg" alt="Avatar">
+    </div>
+    <div class="card-body" id="cardBody"></div>
+  </div>
+
+  <div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose" type="button" aria-label="Cerrar">&times;</button>
+    <img src="" alt="Foto completa" id="lightboxImg">
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+
+  <script>
+    // =====================================================================
+    // CONFIGURACIÓN
+    // =====================================================================
+    const SUPABASE_URL = 'https://vjzbuxparhndkepfmhlt.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqemJ1eHBhcmhuZGtlcGZtaGx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5OTM2MjEsImV4cCI6MjEwNjU2OTYyMX0.vFRBR-CnVZ6RrEpXk8QkFq1shOCkJ-K0UZOkh8P8Z78';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const MAX_PHOTOS = 7;
+
+    const params = new URLSearchParams(location.search);
+    const LOCAL_ID = params.get('id');
+    const ES_MODO_EDICION = params.get('edit') === '1';
+
+    let PLAN_DATA = {
+      avatar: "",
+      cover: "",
+      categories: [],
+      title: "Tienda de ejemplo",
+      description: "Esta es una vista de ejemplo.",
+      schedule: "",
+      photos: []
+    };
+
+    let CAMBIOS_PENDIENTES = {};
+
+    // =====================================================================
+    // UTILIDADES
+    // =====================================================================
+    function createElement(tag, className, text) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (text) el.textContent = text;
+      return el;
+    }
+    function hasText(v) {
+      return typeof v === 'string' && v.trim() !== '';
+    }
+
+    // =====================================================================
+    // ENCABEZADO
+    // =====================================================================
+    function renderHeader() {
+      if (hasText(PLAN_DATA.cover)) {
+        document.getElementById('headerBg').style.backgroundImage =
+          `url(${JSON.stringify(PLAN_DATA.cover)})`;
+      }
+      const avatarWrap = document.getElementById('avatarWrap');
+      if (hasText(PLAN_DATA.avatar)) {
+        document.getElementById('avatarImg').src = PLAN_DATA.avatar;
+      } else {
+        avatarWrap.remove();
+      }
+    }
+
+    // =====================================================================
+    // BLOQUES
+    // =====================================================================
+    function buildCategories() {
+  const list = (PLAN_DATA.categories || []).filter(hasText);
+  const enEdicion = document.body.classList.contains('edit-mode');
+
+  // Si no hay categorías y NO estamos editando, no dibujamos nada
+  if (list.length === 0 && !enEdicion) return null;
+
+  const container = createElement('div', 'category-tags');
+  container.id = 'categoriesContainer';
+
+  list.forEach((name, idx) => {
+    container.appendChild(crearTagCategoria(name, idx));
+  });
+
+  // En modo edición, agregamos el botón "+ Agregar"
+  if (enEdicion) {
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'add-category-btn';
+    addBtn.textContent = '+ Agregar';
+    addBtn.addEventListener('click', agregarCategoria);
+    container.appendChild(addBtn);
+  }
+
+  return container;
+}
+
+function crearTagCategoria(nombre, idx) {
+  // Envolvemos la etiqueta y el botón "×" en un contenedor.
+  // El botón va FUERA del contenteditable para que el clic funcione.
+  const wrap = document.createElement('span');
+  wrap.className = 'category-tag-wrap';
+  wrap.style.position = 'relative';
+  wrap.style.display = 'inline-block';
+
+  const tag = createElement('span', 'category-tag', nombre);
+  tag.dataset.idx = String(idx);
+  wrap.appendChild(tag);
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'tag-delete';
+  del.textContent = '×';
+  del.setAttribute('aria-label', 'Eliminar categoría');
+  del.addEventListener('click', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    eliminarCategoria(idx);
+  });
+  wrap.appendChild(del);
+
+  return wrap;
+}
+
+// Lee las categorías que se ven AHORA en pantalla
+function leerCategoriasDelDOM() {
+  const tags = document.querySelectorAll('.category-tag');
+  return Array.from(tags)
+    .map(function (t) { return t.textContent.trim(); })
+    .filter(Boolean);
+}
+
+function agregarCategoria() {
+  const actuales = leerCategoriasDelDOM();
+  actuales.push('Nueva');
+  CAMBIOS_PENDIENTES.categories = actuales;
+  marcarComoSucio();
+  rerenderCategorias(actuales, actuales.length - 1);
+}
+
+function eliminarCategoria(idx) {
+  const actuales = leerCategoriasDelDOM();
+  actuales.splice(idx, 1);
+  CAMBIOS_PENDIENTES.categories = actuales;
+  marcarComoSucio();
+  rerenderCategorias(actuales, -1);
+}
+
+function rerenderCategorias(lista, idxFoco) {
+  const old = document.getElementById('categoriesContainer');
+  const enEdicion = document.body.classList.contains('edit-mode');
+
+  // Si ya no hay categorías y NO estamos editando, quitamos el bloque
+  if (lista.length === 0 && !enEdicion) {
+    if (old) old.remove();
+    return;
+  }
+
+  // Construimos el nuevo contenedor a partir de LA LISTA QUE NOS PASARON
+  const nuevo = document.createElement('div');
+  nuevo.className = 'category-tags';
+  nuevo.id = 'categoriesContainer';
+
+  lista.forEach((name, idx) => {
+    nuevo.appendChild(crearTagCategoria(name, idx));
+  });
+
+  if (enEdicion) {
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'add-category-btn';
+    addBtn.textContent = '+ Agregar';
+    addBtn.addEventListener('click', agregarCategoria);
+    nuevo.appendChild(addBtn);
+  }
+
+  // Reemplazamos en el DOM
+  if (old) {
+    old.replaceWith(nuevo);
+  } else {
+    // Si no existía (porque no había categorías antes), lo insertamos
+    const body = document.getElementById('cardBody');
+    body.insertBefore(nuevo, body.firstChild);
+  }
+
+  // Foco en el tag recién agregado (si aplica)
+  if (idxFoco >= 0) {
+    const tags = nuevo.querySelectorAll('.category-tag');
+    if (tags[idxFoco]) {
+      tags[idxFoco].focus();
+      const range = document.createRange();
+      range.selectNodeContents(tags[idxFoco]);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+
+  hacerEditableCategorias();
+}
+    function hacerEditableCategorias() {
+  const tags = document.querySelectorAll('.category-tag');
+  tags.forEach(function (tag) {
+    tag.setAttribute('contenteditable', 'true');
+    tag.setAttribute('spellcheck', 'false');
+
+    // Al escribir: actualizamos CAMBIOS_PENDIENTES
+    tag.addEventListener('input', function () {
+      const todos = document.querySelectorAll('.category-tag');
+      const nuevas = Array.from(todos).map(function (t) {
+        // Clonamos sin el botón × para obtener solo el texto
+        const clon = t.cloneNode(true);
+        const boton = clon.querySelector('.tag-delete');
+        if (boton) boton.remove();
+        return clon.textContent.trim();
+      }).filter(Boolean);
+      CAMBIOS_PENDIENTES.categories = nuevas;
+      marcarComoSucio();
+    });
+
+    // Enter quita el foco
+    tag.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        tag.blur();
+      }
+      if (e.key === 'Escape') {
+        tag.blur();
+      }
+    });
+
+    // Foco: seleccionar todo el texto para reemplazo rápido
+    tag.addEventListener('focus', function () {
+      const range = document.createRange();
+      range.selectNodeContents(tag);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+  });
+}
+
+    function buildTitle() {
+      if (!hasText(PLAN_DATA.title)) return null;
+      const h2 = createElement('h2', 'card-title', PLAN_DATA.title);
+      h2.id = 'tituloEditable';
+      return h2;
+    }
+
+    function buildDescription() {
+      if (!hasText(PLAN_DATA.description)) return null;
+      const p = createElement('p', 'card-desc', PLAN_DATA.description);
+      p.id = 'descripcionEditable';
+      return p;
+    }
+
+   function buildSchedule() {
+  if (!hasText(PLAN_DATA.schedule)) return null;
+  const footer = createElement('div', 'footer-info');
+  footer.appendChild(createElement('i', 'far fa-clock'));
+  footer.appendChild(document.createTextNode(' Horario: '));
+  const span = createElement('span', null, PLAN_DATA.schedule);
+  span.id = 'horarioEditable';
+  footer.appendChild(span);
+  return footer;
+}
+
+    function buildPhotoGrid() {
+      const photos = (PLAN_DATA.photos || []).filter(hasText).slice(0, MAX_PHOTOS);
+      if (photos.length === 0) return null;
+
+      const grid = createElement('div', 'photo-grid');
+      function updateCount() {
+        const count = grid.children.length;
+        if (count === 0) grid.remove();
+        else grid.dataset.count = count;
+      }
+      photos.forEach(url => {
+        const thumb = createElement('button', 'photo-thumb');
+        thumb.type = 'button';
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Foto del local';
+        img.loading = 'lazy';
+        img.addEventListener('error', () => { thumb.remove(); updateCount(); });
+        thumb.addEventListener('click', (event) => {
+          event.stopPropagation();
+          openLightbox(url);
+        });
+        thumb.appendChild(img);
+        grid.appendChild(thumb);
+      });
+      updateCount();
+      return grid;
+    }
+
+    function renderBody() {
+      const body = document.getElementById('cardBody');
+      body.innerHTML = '';
+      [
+        buildCategories(),
+        buildTitle(),
+        buildDescription(),
+        buildPhotoGrid(),
+        buildSchedule()
+      ].forEach(block => { if (block) body.appendChild(block); });
+    }
+
+    // =====================================================================
+    // LIGHTBOX
+    // =====================================================================
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    function openLightbox(url) {
+      lightboxImg.src = url;
+      lightbox.classList.add('active');
+    }
+    function closeLightbox() { lightbox.classList.remove('active'); }
+    document.getElementById('lightboxClose').addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeLightbox();
+    });
+    lightbox.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    // =====================================================================
+    // CARGA DESDE SUPABASE
+    // =====================================================================
+    async function cargarDatos(localId) {
+      if (!localId) return;
+      try {
+        const { data, error } = await sb
+          .from('locales')
+          .select('datos')
+          .eq('id', localId)
+          .maybeSingle();
+        if (error) { console.error(error); return; }
+        if (data && data.datos && typeof data.datos === 'object') {
+          PLAN_DATA = Object.assign({}, PLAN_DATA, data.datos);
+        }
+      } catch (err) {
+        console.error('Error cargando local:', err);
+      }
+    }
+
+    // =====================================================================
+    // VERIFICAR PERMISOS
+    // =====================================================================
+    async function verificarPermisos(localId) {
+      if (!localId) return false;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) return false;
+        const { data, error } = await sb
+          .from('locales')
+          .select('propietario_id')
+          .eq('id', localId)
+          .maybeSingle();
+        if (error || !data) return false;
+        return data.propietario_id === session.user.id;
+      } catch (e) {
+        console.error('Error verificando permisos:', e);
+        return false;
+      }
+    }
+
+    // =====================================================================
+    // GUARDAR CAMBIOS
+    // =====================================================================
+    function marcarComoSucio() {
+      const btn = document.getElementById('btnGuardar');
+      if (!btn) return;
+      btn.disabled = false;
+      btn.classList.add('dirty');
+      btn.classList.remove('saving');
+    }
+
+    function marcarComoLimpio() {
+      const btn = document.getElementById('btnGuardar');
+      if (!btn) return;
+      btn.disabled = true;
+      btn.classList.remove('dirty', 'saving');
+      btn.textContent = 'Guardar cambios';
+    }
+
+        async function guardarTodo(localId) {
+      const btn = document.getElementById('btnGuardar');
+      btn.classList.add('saving');
+      btn.textContent = 'Guardando…';
+
+      try {
+        const { data: row, error: errRead } = await sb
+          .from('locales')
+          .select('datos, categoria')
+          .eq('id', localId)
+          .maybeSingle();
+        if (errRead) throw errRead;
+
+        const datosActuales = (row && row.datos) || {};
+        const datosNuevos = Object.assign({}, datosActuales, CAMBIOS_PENDIENTES);
+
+        // Preparamos el payload. Solo tocamos `categoria` y `categorias_clave`
+        // si el locatario editó las categorías (para no sobrescribir en vano).
+        const updatePayload = { datos: datosNuevos };
+
+        if (CAMBIOS_PENDIENTES.categories !== undefined) {
+          const categoriasFinales = Array.isArray(datosNuevos.categories)
+            ? datosNuevos.categories.filter(function (c) {
+                return typeof c === 'string' && c.trim() !== '';
+              })
+            : [];
+                    updatePayload.categoria = categoriasFinales[0] || 'Por definir';
+          updatePayload.categoria_clave = JSON.stringify(categoriasFinales);
+        }
+
+        const { error: errWrite } = await sb
+          .from('locales')
+          .update(updatePayload)
+          .eq('id', localId);
+        if (errWrite) throw errWrite;
+
+        PLAN_DATA = Object.assign({}, PLAN_DATA, CAMBIOS_PENDIENTES);
+        CAMBIOS_PENDIENTES = {};
+        document.querySelectorAll('.editable.modificado').forEach(el => el.classList.remove('modificado'));
+
+        mostrarToast('Guardado ✓');
+        marcarComoLimpio();
+      } catch (e) {
+        console.error('Error al guardar:', e);
+        mostrarToast('No se pudo guardar', true);
+        btn.classList.remove('saving');
+        btn.textContent = 'Guardar cambios';
+      }
+    }
+    // =====================================================================
+    // TOAST
+    // =====================================================================
+    let toastTimer = null;
+    function mostrarToast(texto, esError) {
+      const t = document.getElementById('saveToast');
+      t.textContent = texto;
+      t.classList.toggle('error', Boolean(esError));
+      t.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('visible'), 2000);
+    }
+
+    // =====================================================================
+    // HACER UN ELEMENTO EDITABLE (helper reutilizable)
+    // =====================================================================
+    // campoKey: la clave dentro del JSONB (ej. 'title', 'description')
+    // multilinea: true si se permiten saltos de línea (Enter crea nueva línea)
+    function hacerEditable(elemento, campoKey, multilinea) {
+      if (!elemento) return;
+
+      elemento.classList.add('editable');
+      elemento.setAttribute('contenteditable', 'true');
+      elemento.setAttribute('spellcheck', 'false');
+
+      // Evitar que un solo Enter dispare "guardar"
+      elemento.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !multilinea) {
+          e.preventDefault();
+          elemento.blur();
+        }
+        if (e.key === 'Escape') {
+          elemento.textContent = PLAN_DATA[campoKey] || '';
+          elemento.classList.remove('modificado');
+          delete CAMBIOS_PENDIENTES[campoKey];
+          if (Object.keys(CAMBIOS_PENDIENTES).length === 0) marcarComoLimpio();
+          elemento.blur();
+        }
+      });
+
+      // Al escribir: actualizar CAMBIOS_PENDIENTES
+      elemento.addEventListener('input', () => {
+        const nuevo = elemento.textContent.trim();
+        if (nuevo !== (PLAN_DATA[campoKey] || '')) {
+          CAMBIOS_PENDIENTES[campoKey] = nuevo;
+          elemento.classList.add('modificado');
+          marcarComoSucio();
+        } else {
+          delete CAMBIOS_PENDIENTES[campoKey];
+          elemento.classList.remove('modificado');
+          if (Object.keys(CAMBIOS_PENDIENTES).length === 0) marcarComoLimpio();
+        }
+      });
+
+      // Al enfocar: seleccionar todo el texto (solo si es de una línea)
+      if (!multilinea) {
+        elemento.addEventListener('focus', () => {
+          const range = document.createRange();
+          range.selectNodeContents(elemento);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+      }
+    }
+
+    // =====================================================================
+    // ACTIVAR MODO EDICIÓN
+    // =====================================================================
+    function activarUIEdicion(localId) {
+      document.body.classList.add('edit-mode');
+      // Re-renderizamos el bloque de categorías para que aparezca el botón
+// "+ Agregar" (que solo se dibuja si estamos en modo edición).
+(function reRenderCategorias() {
+  const old = document.getElementById('categoriesContainer');
+  const catsActuales = (PLAN_DATA.categories || []).filter(hasText);
+  rerenderCategorias(catsActuales, -1);
+})();
+
+      const toolbar = document.getElementById('editToolbar');
+      toolbar.hidden = false;
+
+      // Botón "Vista de visitante"
+      const btnPrev = document.getElementById('btnVistaPrevia');
+      const url = new URL(location.href);
+      url.searchParams.delete('edit');
+      btnPrev.href = url.toString();
+
+      // Botón "Guardar cambios"
+      const btnGuardar = document.getElementById('btnGuardar');
+      btnGuardar.addEventListener('click', () => {
+        if (btnGuardar.disabled) return;
+        guardarTodo(localId);
+      });
+
+      // Hacer editables los campos de texto
+      hacerEditable(document.getElementById('tituloEditable'), 'title', false);
+      hacerEditable(document.getElementById('descripcionEditable'), 'description', true);
+      hacerEditable(document.getElementById('horarioEditable'), 'schedule', false);
+      hacerEditableCategorias();
+
+      // Aviso si intenta salir con cambios sin guardar
+      window.addEventListener('beforeunload', (e) => {
+        if (Object.keys(CAMBIOS_PENDIENTES).length > 0) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+    }
+
+    // =====================================================================
+    // ARRANQUE
+    // =====================================================================
+    (async function init() {
+      await cargarDatos(LOCAL_ID);
+      renderHeader();
+      renderBody();
+
+      if (ES_MODO_EDICION && LOCAL_ID) {
+        const permitido = await verificarPermisos(LOCAL_ID);
+        if (permitido) {
+          activarUIEdicion(LOCAL_ID);
+        } else {
+          console.warn('Modo edición solicitado pero el usuario no es dueño de este local.');
+        }
+      }
+    })();
+  </script>
+
+</body>
+</html>

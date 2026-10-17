@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Mi Panel - Tianguis Digital</title>
+  <style>
+    :root {
+      --bg-page: #FBF4EA;
+      --bg-card: #FFFFFF;
+      --coral: #F7BFB6;
+      --coral-active: #FF6F59;
+      --text: #2B2B2B;
+      --muted: #857F76;
+      --border: #EDE3D4;
+      --shadow: 0 12px 32px rgba(43,32,20,0.12);
+      --ok: #25d366;
+      --bad: #e74c3c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background-color: var(--bg-page);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .panel-container { width: 100%; max-width: 520px; margin: 0 auto; }
+    .card {
+      background: var(--bg-card);
+      border-radius: 24px;
+      padding: 30px 26px;
+      box-shadow: var(--shadow);
+    }
+
+    /* ---------- Encabezado ---------- */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: var(--coral) center/cover no-repeat;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800; color: #fff;
+      flex-shrink: 0;
+      border: 3px solid var(--bg-card);
+      box-shadow: 0 0 0 3px var(--border);
+    }
+    .header-info { min-width: 0; flex: 1; }
+    .header-info .numero {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .header-info h1 {
+      margin: 2px 0 6px;
+      font-size: 20px;
+      overflow-wrap: break-word;
+    }
+    .plan-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      padding: 3px 10px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .plan-normal  { background: #EDE3D4; color: #6b5f52; }
+    .plan-plus    { background: #F9D9A6; color: #7a5b16; }
+    .plan-premium { background: #E3C888; color: #6b4a00; }
+
+    /* ---------- Secciones ---------- */
+    .section { margin-bottom: 22px; }
+    .section h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 10px;
+      font-weight: 700;
+    }
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-row .label { color: var(--muted); flex-shrink: 0; }
+    .data-row .value {
+      color: var(--text);
+      font-weight: 600;
+      text-align: right;
+      overflow-wrap: break-word;
+      min-width: 0;
+    }
+
+    .categorias { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      background: #FAFAFA;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: var(--text);
+    }
+
+    .fotos-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .foto-mini {
+      width: 72px; height: 72px;
+      border-radius: 10px;
+      background: #f5f5f5 center/cover no-repeat;
+      border: 1px solid var(--border);
+    }
+    .fotos-vacio {
+      font-size: 13px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ---------- Botones ---------- */
+    .acciones {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 26px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .btn {
+      width: 100%;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: filter 0.2s ease;
+    }
+    .btn-primary { background: var(--coral-active); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn-secondary {
+      background: #FAFAFA;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #F0EDE8; }
+    .btn-danger {
+      background: transparent;
+      color: var(--bad);
+      border: 1px solid #f3d1cc;
+      font-size: 13px;
+      padding: 11px;
+    }
+    .btn-danger:hover { background: #fdf4f2; }
+
+    /* ---------- Estados ---------- */
+    .loading, .error {
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .error { color: var(--bad); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="panel-container">
+    <div class="card" id="card">
+      <div class="loading">Cargando tu local…</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script>
+    // ===== CONFIGURACIÓN =====
+    const SUPABASE_URL = 'https://vjzbuxparhndkepfmhlt.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZqemJ1eHBhcmhuZGtlcGZtaGx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5OTM2MjEsImV4cCI6MjEwNjU2OTYyMX0.vFRBR-CnVZ6RrEpXk8QkFq1shOCkJ-K0UZOkh8P8Z78';
+    const RUTA_LOGIN = 'login.html';
+
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const card = document.getElementById('card');
+
+    function mostrarError(msg) {
+      card.innerHTML = '';
+      const p = document.createElement('div');
+      p.className = 'error';
+      p.textContent = msg;
+      card.appendChild(p);
+    }
+
+    async function cerrarSesion() {
+      try { await supabaseClient.auth.signOut(); } catch (e) { console.warn(e); }
+      try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+      window.location.href = RUTA_LOGIN;
+    }
+
+    function crearFila(label, valor) {
+      const row = document.createElement('div');
+      row.className = 'data-row';
+      const l = document.createElement('span');
+      l.className = 'label';
+      l.textContent = label;
+      const v = document.createElement('span');
+      v.className = 'value';
+      v.textContent = valor;
+      row.appendChild(l);
+      row.appendChild(v);
+      return row;
+    }
+
+    function pintarPanel(local) {
+      card.innerHTML = '';
+
+      const datos = local.datos || {};
+
+      // ---------- Encabezado ----------
+      const header = document.createElement('div');
+      header.className = 'header';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      if (datos.avatar) {
+        avatar.style.backgroundImage = 'url("' + datos.avatar + '")';
+      } else {
+        const inicial = (local.nombre || '?').trim().charAt(0).toUpperCase();
+        avatar.textContent = inicial;
+      }
+      header.appendChild(avatar);
+
+      const info = document.createElement('div');
+      info.className = 'header-info';
+
+      const numero = document.createElement('div');
+      numero.className = 'numero';
+      numero.textContent = 'Local ' + (local.numero || '?') + ' · Pasillo ' + (local.pasillo || '?');
+      info.appendChild(numero);
+
+      const h1 = document.createElement('h1');
+      h1.textContent = local.nombre || 'Sin nombre';
+      info.appendChild(h1);
+
+      const badge = document.createElement('span');
+      badge.className = 'plan-badge plan-' + (local.plan || 'normal');
+      badge.textContent = local.plan || 'normal';
+      info.appendChild(badge);
+
+      header.appendChild(info);
+      card.appendChild(header);
+
+      // ---------- Sección: información ----------
+      const secInfo = document.createElement('div');
+      secInfo.className = 'section';
+      const h2Info = document.createElement('h2');
+      h2Info.textContent = 'Información';
+      secInfo.appendChild(h2Info);
+
+      if (datos.title)        secInfo.appendChild(crearFila('Título del perfil', datos.title));
+      if (local.categoria)    secInfo.appendChild(crearFila('Categoría', local.categoria));
+      if (datos.description)  secInfo.appendChild(crearFila('Descripción', datos.description));
+      if (datos.schedule)     secInfo.appendChild(crearFila('Horario', datos.schedule));
+      if (local.whatsapp)     secInfo.appendChild(crearFila('WhatsApp', local.whatsapp));
+
+      card.appendChild(secInfo);
+
+      // ---------- Sección: categorías ----------
+      if (Array.isArray(datos.categories) && datos.categories.length) {
+        const secCat = document.createElement('div');
+        secCat.className = 'section';
+        const h2Cat = document.createElement('h2');
+        h2Cat.textContent = 'Etiquetas';
+        secCat.appendChild(h2Cat);
+
+        const cont = document.createElement('div');
+        cont.className = 'categorias';
+        datos.categories.forEach(function (c) {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = c;
+          cont.appendChild(chip);
+        });
+        secCat.appendChild(cont);
+        card.appendChild(secCat);
+      }
+
+      // ---------- Sección: fotos ----------
+      const secFotos = document.createElement('div');
+      secFotos.className = 'section';
+      const h2Fotos = document.createElement('h2');
+      h2Fotos.textContent = 'Fotos (' + (Array.isArray(datos.photos) ? datos.photos.length : 0) + ')';
+      secFotos.appendChild(h2Fotos);
+
+      if (Array.isArray(datos.photos) && datos.photos.length) {
+        const cont = document.createElement('div');
+        cont.className = 'fotos-preview';
+        datos.photos.forEach(function (url) {
+          const mini = document.createElement('div');
+          mini.className = 'foto-mini';
+          mini.style.backgroundImage = 'url("' + url + '")';
+          cont.appendChild(mini);
+        });
+        secFotos.appendChild(cont);
+      } else {
+        const vacio = document.createElement('div');
+        vacio.className = 'fotos-vacio';
+        vacio.textContent = 'Aún no has subido fotos.';
+        secFotos.appendChild(vacio);
+      }
+      card.appendChild(secFotos);
+
+      // ---------- Acciones ----------
+      const acciones = document.createElement('div');
+      acciones.className = 'acciones';
+
+      const btnEditar = document.createElement('button');
+      btnEditar.type = 'button';
+      btnEditar.className = 'btn btn-primary';
+      btnEditar.textContent = '✏️ Editar mi local';
+      btnEditar.addEventListener('click', () => {
+  const rutas = {
+    normal:  'Locales/PlanNormal.html',
+    plus:    'Locales/PlanPlus.html',
+    premium: 'Locales/PlanPremium.html'
+  };
+  const base = rutas[local.plan] || rutas.normal;
+  window.location.href = base + '?id=' + local.id + '&edit=1';
+});
+acciones.appendChild(btnEditar);
+
+      if (local.perfil_url) {
+        const btnVer = document.createElement('a');
+        btnVer.className = 'btn btn-secondary';
+        btnVer.href = local.perfil_url;
+        btnVer.target = '_blank';
+        btnVer.rel = 'noopener';
+        btnVer.textContent = '👁 Ver mi perfil público';
+        btnVer.style.textDecoration = 'none';
+        btnVer.style.textAlign = 'center';
+        btnVer.style.display = 'block';
+        acciones.appendChild(btnVer);
+      }
+
+      const btnSalir = document.createElement('button');
+      btnSalir.type = 'button';
+      btnSalir.className = 'btn btn-danger';
+      btnSalir.textContent = 'Cerrar sesión';
+      btnSalir.addEventListener('click', cerrarSesion);
+      acciones.appendChild(btnSalir);
+
+      card.appendChild(acciones);
+    }
+
+    async function init() {
+      // 1. Verificar sesión
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) {
+        window.location.href = RUTA_LOGIN;
+        return;
+      }
+
+      // 2. Buscar el local del usuario
+      const { data: locales, error } = await supabaseClient
+        .from('locales')
+        .select('id, numero, pasillo, nombre, categoria, plan, whatsapp, perfil_url, datos')
+        .eq('propietario_id', session.user.id)
+        .limit(1);
+
+      if (error) {
+        console.error(error);
+        mostrarError('No se pudieron cargar tus datos. Intenta de nuevo.');
+        return;
+      }
+
+      if (!locales || locales.length === 0) {
+        mostrarError('Tu cuenta no está vinculada a ningún local todavía. Contacta al administrador.');
+        return;
+      }
+
+      pintarPanel(locales[0]);
+    }
+
+    init().catch(function (err) {
+      console.error(err);
+      mostrarError('Error al cargar el panel. Intenta de nuevo.');
+    });
+  </script>
+</body>
+</html>
