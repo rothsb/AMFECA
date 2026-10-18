@@ -777,7 +777,7 @@ function rerenderCategorias(lista, idxFoco) {
       btn.textContent = 'Guardar cambios';
     }
 
-        async function guardarTodo(localId) {
+          async function guardarTodo(localId) {
       const btn = document.getElementById('btnGuardar');
       btn.classList.add('saving');
       btn.textContent = 'Guardando…';
@@ -793,18 +793,24 @@ function rerenderCategorias(lista, idxFoco) {
         const datosActuales = (row && row.datos) || {};
         const datosNuevos = Object.assign({}, datosActuales, CAMBIOS_PENDIENTES);
 
-        // Preparamos el payload. Solo tocamos `categoria` y `categorias_clave`
-        // si el locatario editó las categorías (para no sobrescribir en vano).
+        // Preparamos el payload.
         const updatePayload = { datos: datosNuevos };
 
+        // Si se editaron categorías
         if (CAMBIOS_PENDIENTES.categories !== undefined) {
           const categoriasFinales = Array.isArray(datosNuevos.categories)
             ? datosNuevos.categories.filter(function (c) {
                 return typeof c === 'string' && c.trim() !== '';
               })
             : [];
-                    updatePayload.categoria = categoriasFinales[0] || 'Por definir';
-         updatePayload.categoria_clave = categoriasFinales;
+          updatePayload.categoria = categoriasFinales[0] || 'Por definir';
+          updatePayload.categoria_clave = categoriasFinales;
+        }
+
+        // ⭐ NUEVO: Si se cambió el avatar, actualizamos también la columna `imagen`
+        // para que el mapa (index.html) lo refleje.
+        if (CAMBIOS_PENDIENTES.avatar !== undefined) {
+          updatePayload.imagen = CAMBIOS_PENDIENTES.avatar;
         }
 
         const { error: errWrite } = await sb
