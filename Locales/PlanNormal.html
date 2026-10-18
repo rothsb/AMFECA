@@ -1020,9 +1020,9 @@ function rerenderCategorias(lista, idxFoco) {
               CAMBIOS_PENDIENTES.avatar = url;
               marcarComoSucio();
               mostrarToast('Logo actualizado. ¡Guarda cambios!');
-            } catch (err) {
-              console.error(err);
-              mostrarToast('Error al subir logo', true);
+             } catch (err) {
+              console.error("Error detallado de Supabase:", err);
+              mostrarToast('Error: ' + (err.message || 'No se pudo subir'), true);
             } finally {
               btnEditAvatar.textContent = '📷';
             }
