@@ -868,24 +868,42 @@ function rerenderCategorias(lista, idxFoco) {
         img.src = URL.createObjectURL(file);
       });
     }
-
-    // Sube el archivo a Supabase Storage (Mañana lo cambiamos a R2)
-    async function subirImagen(file, tipo) {
+        // Extrae la ruta del archivo a partir de su URL pública
+    function extraerRutaDeURL(url) {
+      if (!url) return null;
+      const marcador = '/fotos_locales/';
+      const index = url.indexOf(marcador);
+      if (index !== -1) {
+        return decodeURIComponent(url.substring(index + marcador.length));
+      }
+      return null;
+    }
+       // Sube el archivo a Supabase Storage (Mañana lo cambiamos a R2)
+    async function subirImagen(file, tipo, urlAnterior) {
       // 1. Convertir a WebP
-      const fileWebp = await convertirAWebP(file);
+      const fileWebp = await convertirAWebP(file, tipo === 'cover' ? 1200 : 800);
       
-      // 2. Crear un nombre único
+      // 2. BORRAR LA IMAGEN ANTERIOR (si existe)
+      if (urlAnterior) {
+        const rutaAnterior = extraerRutaDeURL(urlAnterior);
+        if (rutaAnterior) {
+          console.log("Borrando imagen anterior:", rutaAnterior);
+          await sb.storage.from('fotos_locales').remove([rutaAnterior]);
+        }
+      }
+      
+      // 3. Crear un nombre único para la nueva imagen
       const timestamp = Date.now();
       const ruta = `${LOCAL_ID}/${tipo}_${timestamp}.webp`;
       
-      // 3. Subir a Supabase
+      // 4. Subir a Supabase
       const { data, error } = await sb.storage
         .from('fotos_locales')
         .upload(ruta, fileWebp, { upsert: true });
         
       if (error) throw error;
       
-      // 4. Obtener la URL pública
+      // 5. Obtener la URL pública
       const { data: urlData } = sb.storage
         .from('fotos_locales')
         .getPublicUrl(ruta);
@@ -1014,7 +1032,7 @@ function rerenderCategorias(lista, idxFoco) {
             
             btnEditAvatar.textContent = '⏳';
             try {
-              const url = await subirImagen(file, 'logo');
+             const url = await subirImagen(file, 'logo', PLAN_DATA.avatar);
               document.getElementById('avatarImg').src = url;
               PLAN_DATA.avatar = url;
               CAMBIOS_PENDIENTES.avatar = url;
