@@ -880,14 +880,14 @@ function rerenderCategorias(lista, idxFoco) {
       
       // 3. Subir a Supabase
       const { data, error } = await sb.storage
-        .from('fotos-locales')
+        .from('fotos_locales')
         .upload(ruta, fileWebp, { upsert: true });
         
       if (error) throw error;
       
       // 4. Obtener la URL pública
       const { data: urlData } = sb.storage
-        .from('fotos-locales')
+        .from('fotos_locales')
         .getPublicUrl(ruta);
         
       return urlData.publicUrl;
