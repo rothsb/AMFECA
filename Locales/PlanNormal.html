@@ -41,6 +41,23 @@
       background-size: cover;
       background-position: center;
     }
+        .cover-edit-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #FF6F59;
+      color: white;
+      border: 2px solid white;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 10;
+    }
+    body.edit-mode .cover-edit-btn { display: block; }
     .card-avatar-wrap {
       display: flex;
       justify-content: center;
@@ -384,7 +401,9 @@ body.edit-mode .add-category-btn { display: inline-block; }
   <div class="save-toast" id="saveToast">Guardado ✓</div>
 
   <div class="plan-card-container">
-    <div class="card-header-bg" id="headerBg"></div>
+       <div class="card-header-bg" id="headerBg" style="position: relative;">
+      <button class="cover-edit-btn" id="btnEditCover" type="button" title="Cambiar Fondo">📷 Cambiar fondo</button>
+    </div>
         <div class="card-avatar-wrap" id="avatarWrap" style="position: relative;">
       <img class="card-avatar" id="avatarImg" alt="Avatar">
       <button class="avatar-edit-btn" id="btnEditAvatar" type="button" title="Cambiar Logo">📷</button>
@@ -1048,7 +1067,38 @@ function rerenderCategorias(lista, idxFoco) {
           input.click();
         });
       }
-    
+                 // Lógica para cambiar la Foto de Fondo (Portada)
+      const btnEditCover = document.getElementById('btnEditCover');
+      if (btnEditCover) {
+        btnEditCover.addEventListener('click', () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            btnEditCover.textContent = '⏳...';
+            try {
+              // ⭐ AQUÍ ESTÁ LA MAGIA: Le pasamos PLAN_DATA.cover como tercer parámetro
+              // para que el sistema sepa qué imagen vieja debe borrar.
+              const url = await subirImagen(file, 'cover', PLAN_DATA.cover);
+              
+              document.getElementById('headerBg').style.backgroundImage = `url(${url})`;
+              PLAN_DATA.cover = url;
+              CAMBIOS_PENDIENTES.cover = url;
+              marcarComoSucio();
+              mostrarToast('Fondo actualizado. ¡Guarda cambios!');
+            } catch (err) {
+              console.error(err);
+              mostrarToast('Error al subir fondo', true);
+            } finally {
+              btnEditCover.textContent = '📷 Cambiar fondo';
+            }
+          };
+          input.click();
+        });
+      }
     }
 
     // =====================================================================
