@@ -112,7 +112,6 @@
       border-radius: 10px;
       font-size: 0.7rem;
       font-weight: 600;
-      text-transform: uppercase;
     }
 
     .card-title {
@@ -883,11 +882,15 @@ function rerenderCategorias(lista, idxFoco) {
         const updatePayload = { datos: datosNuevos };
 
         // Si se editaron categorías
-        if (CAMBIOS_PENDIENTES.categories !== undefined) {
+               if (CAMBIOS_PENDIENTES.categories !== undefined) {
           const categoriasFinales = Array.isArray(datosNuevos.categories)
-            ? datosNuevos.categories.filter(function (c) {
-                return typeof c === 'string' && c.trim() !== '';
-              })
+            ? datosNuevos.categories
+                .filter(function (c) { return typeof c === 'string' && c.trim() !== ''; })
+                .map(function (c) {
+                  // Convierte "ropa", "ROPA" o "RoPa" a "Ropa"
+                  const limpio = c.trim().toLowerCase();
+                  return limpio.charAt(0).toUpperCase() + limpio.slice(1);
+                })
             : [];
           updatePayload.categoria = categoriasFinales[0] || 'Por definir';
           updatePayload.categoria_clave = categoriasFinales;
