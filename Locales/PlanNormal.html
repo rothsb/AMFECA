@@ -954,6 +954,38 @@ function rerenderCategorias(lista, idxFoco) {
         img.src = URL.createObjectURL(file);
       });
     }
+        // Sube el archivo a Supabase Storage (Mañana lo cambiamos a R2)
+    async function subirImagen(file, tipo, urlAnterior) {
+      // 1. Convertir a WebP
+      const fileWebp = await convertirAWebP(file, tipo === 'cover' ? 1200 : 800);
+      
+      // 2. BORRAR LA IMAGEN ANTERIOR (si existe)
+      if (urlAnterior) {
+        const rutaAnterior = extraerRutaDeURL(urlAnterior);
+        if (rutaAnterior) {
+          console.log("Borrando imagen anterior:", rutaAnterior);
+          await sb.storage.from('fotos_locales').remove([rutaAnterior]);
+        }
+      }
+      
+      // 3. Crear un nombre único
+      const timestamp = Date.now();
+      const ruta = `${LOCAL_ID}/${tipo}_${timestamp}.webp`;
+      
+      // 4. Subir a Supabase
+      const { data, error } = await sb.storage
+        .from('fotos_locales')
+        .upload(ruta, fileWebp, { upsert: true });
+        
+      if (error) throw error;
+      
+      // 5. Obtener la URL pública
+      const { data: urlData } = sb.storage
+        .from('fotos_locales')
+        .getPublicUrl(ruta);
+        
+      return urlData.publicUrl;
+    }
         // Extrae la ruta del archivo a partir de su URL pública
     function extraerRutaDeURL(url) {
       if (!url) return null;
@@ -1088,14 +1120,13 @@ function rerenderCategorias(lista, idxFoco) {
       }
     }
 
-    // =====================================================================
+       // =====================================================================
     // ACTIVAR MODO EDICIÓN
     // =====================================================================
-        function activarUIEdicion(localId) {
+    function activarUIEdicion(localId) {
       document.body.classList.add('edit-mode');
       
-      // ⭐ NUEVO: Volvemos a dibujar el cuerpo AHORA que el modo edición está activo
-      // Esto hará que aparezca el botón de "Agregar Foto" aunque no haya fotos.
+      // Volvemos a dibujar el cuerpo AHORA que el modo edición está activo
       renderBody();
 
       const toolbar = document.getElementById('editToolbar');
@@ -1171,38 +1202,6 @@ function rerenderCategorias(lista, idxFoco) {
             
             btnEditCover.textContent = '⏳...';
             try {
-              const url = await subirImagen(file, 'cover', PLAN_DATA.cover);
-              document.getElementById('headerBg').style.backgroundImage = `url(${url})`;
-              PLAN_DATA.cover = url;
-              CAMBIOS_PENDIENTES.cover = url;
-              marcarComoSucio();
-              mostrarToast('Fondo actualizado. ¡Guarda cambios!');
-            } catch (err) {
-              console.error(err);
-              mostrarToast('Error al subir fondo', true);
-            } finally {
-              btnEditCover.textContent = '📷 Cambiar fondo';
-            }
-          };
-          input.click();
-        });
-      }
-    }
-                 // Lógica para cambiar la Foto de Fondo (Portada)
-      const btnEditCover = document.getElementById('btnEditCover');
-      if (btnEditCover) {
-        btnEditCover.addEventListener('click', () => {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'image/*';
-          input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            btnEditCover.textContent = '⏳...';
-            try {
-              // ⭐ AQUÍ ESTÁ LA MAGIA: Le pasamos PLAN_DATA.cover como tercer parámetro
-              // para que el sistema sepa qué imagen vieja debe borrar.
               const url = await subirImagen(file, 'cover', PLAN_DATA.cover);
               
               document.getElementById('headerBg').style.backgroundImage = `url(${url})`;
