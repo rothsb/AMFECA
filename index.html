@@ -1623,9 +1623,13 @@
       // "Sin categoría" de respaldo) aunque el local no esté en shopsData
       // o le falte ese campo, para que el filtro nunca truene.
       const shop = sanitizeShop(shopsData[el.dataset.id]);
+           // Convertimos ambas a minúsculas para comparar de forma segura
+      const catBuscada = cat.toLowerCase();
+      const catLocal = (shop.categoria || "").toLowerCase();
+      
       const coincide = cat === "Otros"
-        ? !categoriasPrincipales.includes(shop.categoria)
-        : shop.categoria === cat;
+        ? !categoriasPrincipales.map(c => c.toLowerCase()).includes(catLocal)
+        : catLocal === catBuscada;
       el.classList.toggle("match", coincide);
       el.classList.toggle("dim", !coincide);
     });
