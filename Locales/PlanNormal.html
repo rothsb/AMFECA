@@ -167,6 +167,51 @@
     .photo-grid[data-count="4"] .photo-thumb:not(:first-child) {
       grid-column: span 2;
     }
+        /* Estilos para edición de fotos de la galería */
+    body.edit-mode .photo-thumb {
+      outline: 2px dashed rgba(255,111,89,0.5);
+      outline-offset: -2px;
+    }
+    .photo-delete-btn {
+      display: none;
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #e74c3c;
+      color: white;
+      border: 2px solid white;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 0;
+    }
+    
+    body.edit-mode .photo-delete-btn { display: flex; }
+
+    .photo-add-btn {
+      display: none;
+      grid-column: span 6;
+      background: rgba(255,111,89,0.05);
+      border: 2px dashed #FF6F59;
+      color: #FF6F59;
+      border-radius: 10px;
+      padding: 15px;
+      font-weight: bold;
+      font-family: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .photo-add-btn:hover { background: rgba(255,111,89,0.1); }
+    body.edit-mode .photo-add-btn { display: block; }
+    
 
     .lightbox-overlay {
       display: none;
@@ -673,35 +718,57 @@ function rerenderCategorias(lista, idxFoco) {
   return footer;
 }
 
-    function buildPhotoGrid() {
+        function buildPhotoGrid() {
       const photos = (PLAN_DATA.photos || []).filter(hasText).slice(0, MAX_PHOTOS);
-      if (photos.length === 0) return null;
+      const enEdicion = document.body.classList.contains('edit-mode');
+
+      if (photos.length === 0 && !enEdicion) return null;
 
       const grid = createElement('div', 'photo-grid');
-      function updateCount() {
-        const count = grid.children.length;
-        if (count === 0) grid.remove();
-        else grid.dataset.count = count;
-      }
-      photos.forEach(url => {
+
+      photos.forEach((url, idx) => {
         const thumb = createElement('button', 'photo-thumb');
         thumb.type = 'button';
+        thumb.style.position = 'relative'; // Para que el botón de borrar flote encima
+        
         const img = document.createElement('img');
         img.src = url;
         img.alt = 'Foto del local';
         img.loading = 'lazy';
-        img.addEventListener('error', () => { thumb.remove(); updateCount(); });
+        
+        // En modo edición, agregamos la "X" para borrar
+        if (enEdicion) {
+          const btnDel = createElement('button', 'photo-delete-btn', '×');
+          btnDel.type = 'button';
+          btnDel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            eliminarFoto(url);
+          });
+          thumb.appendChild(btnDel);
+        }
+
         thumb.addEventListener('click', (event) => {
-          event.stopPropagation();
-          openLightbox(url);
+          if (!enEdicion) {
+            event.stopPropagation();
+            openLightbox(url);
+          }
         });
+        
         thumb.appendChild(img);
         grid.appendChild(thumb);
       });
-      updateCount();
+
+      // Si estamos en edición y no llegamos al límite, mostramos el botón de agregar
+      if (enEdicion && photos.length < MAX_PHOTOS) {
+        const btnAdd = createElement('button', 'photo-add-btn', '➕ Agregar Foto');
+        btnAdd.type = 'button';
+        btnAdd.addEventListener('click', agregarFoto);
+        grid.appendChild(btnAdd);
+      }
+
+      grid.dataset.count = photos.length;
       return grid;
     }
-
     function renderBody() {
       const body = document.getElementById('cardBody');
       body.innerHTML = '';
@@ -897,37 +964,62 @@ function rerenderCategorias(lista, idxFoco) {
       }
       return null;
     }
-       // Sube el archivo a Supabase Storage (Mañana lo cambiamos a R2)
-    async function subirImagen(file, tipo, urlAnterior) {
-      // 1. Convertir a WebP
-      const fileWebp = await convertirAWebP(file, tipo === 'cover' ? 1200 : 800);
-      
-      // 2. BORRAR LA IMAGEN ANTERIOR (si existe)
-      if (urlAnterior) {
-        const rutaAnterior = extraerRutaDeURL(urlAnterior);
-        if (rutaAnterior) {
-          console.log("Borrando imagen anterior:", rutaAnterior);
-          await sb.storage.from('fotos_locales').remove([rutaAnterior]);
+       // Lógica para agregar una foto nueva a la galería
+    function agregarFoto() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const btnAdd = document.querySelector('.photo-add-btn');
+        if (btnAdd) btnAdd.textContent = '⏳ Subiendo...';
+
+        try {
+          const url = await subirImagen(file, 'galeria');
+          
+          if (!Array.isArray(PLAN_DATA.photos)) PLAN_DATA.photos = [];
+          PLAN_DATA.photos.push(url);
+          
+          CAMBIOS_PENDIENTES.photos = PLAN_DATA.photos.slice();
+          marcarComoSucio();
+          renderBody(); // Re-renderiza la galería para mostrar la nueva foto
+          mostrarToast('Foto agregada. ¡Guarda cambios!');
+        } catch (err) {
+          console.error('Error al subir foto:', err);
+          mostrarToast('Error al subir foto', true);
+          renderBody(); // Restaura el botón
         }
+      };
+      input.click();
+    }
+
+    // Lógica para eliminar una foto de la galería
+    function eliminarFoto(url) {
+      if (!Array.isArray(PLAN_DATA.photos)) return;
+      
+      // 1. Quitarla del array local
+      const idx = PLAN_DATA.photos.indexOf(url);
+      if (idx > -1) {
+        PLAN_DATA.photos.splice(idx, 1);
       }
+
+      // 2. Actualizar cambios pendientes
+      CAMBIOS_PENDIENTES.photos = PLAN_DATA.photos.slice();
+      marcarComoSucio();
       
-      // 3. Crear un nombre único para la nueva imagen
-      const timestamp = Date.now();
-      const ruta = `${LOCAL_ID}/${tipo}_${timestamp}.webp`;
-      
-      // 4. Subir a Supabase
-      const { data, error } = await sb.storage
-        .from('fotos_locales')
-        .upload(ruta, fileWebp, { upsert: true });
-        
-      if (error) throw error;
-      
-      // 5. Obtener la URL pública
-      const { data: urlData } = sb.storage
-        .from('fotos_locales')
-        .getPublicUrl(ruta);
-        
-      return urlData.publicUrl;
+      // 3. Borrar la foto física de Supabase Storage para no dejar basura
+      const ruta = extraerRutaDeURL(url);
+      if (ruta) {
+        sb.storage.from('fotos_locales').remove([ruta]).then(({error}) => {
+          if (error) console.warn('No se pudo borrar la foto física:', error);
+        });
+      }
+
+      // 4. Volver a pintar el HTML
+      renderBody();
+      mostrarToast('Foto eliminada. ¡Guarda cambios!');
     }
 
     // =====================================================================
