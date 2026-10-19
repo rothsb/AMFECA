@@ -1091,15 +1091,12 @@ function rerenderCategorias(lista, idxFoco) {
     // =====================================================================
     // ACTIVAR MODO EDICIÓN
     // =====================================================================
-    function activarUIEdicion(localId) {
+        function activarUIEdicion(localId) {
       document.body.classList.add('edit-mode');
-      // Re-renderizamos el bloque de categorías para que aparezca el botón
-// "+ Agregar" (que solo se dibuja si estamos en modo edición).
-(function reRenderCategorias() {
-  const old = document.getElementById('categoriesContainer');
-  const catsActuales = (PLAN_DATA.categories || []).filter(hasText);
-  rerenderCategorias(catsActuales, -1);
-})();
+      
+      // ⭐ NUEVO: Volvemos a dibujar el cuerpo AHORA que el modo edición está activo
+      // Esto hará que aparezca el botón de "Agregar Foto" aunque no haya fotos.
+      renderBody();
 
       const toolbar = document.getElementById('editToolbar');
       toolbar.hidden = false;
@@ -1130,7 +1127,8 @@ function rerenderCategorias(lista, idxFoco) {
           e.returnValue = '';
         }
       });
-           // Lógica para cambiar el Logo
+
+      // Lógica para cambiar el Logo
       const btnEditAvatar = document.getElementById('btnEditAvatar');
       if (btnEditAvatar) {
         btnEditAvatar.addEventListener('click', () => {
@@ -1143,15 +1141,15 @@ function rerenderCategorias(lista, idxFoco) {
             
             btnEditAvatar.textContent = '⏳';
             try {
-             const url = await subirImagen(file, 'logo', PLAN_DATA.avatar);
+              const url = await subirImagen(file, 'logo', PLAN_DATA.avatar);
               document.getElementById('avatarImg').src = url;
               PLAN_DATA.avatar = url;
               CAMBIOS_PENDIENTES.avatar = url;
               marcarComoSucio();
               mostrarToast('Logo actualizado. ¡Guarda cambios!');
-             } catch (err) {
-              console.error("Error detallado de Supabase:", err);
-              mostrarToast('Error: ' + (err.message || 'No se pudo subir'), true);
+            } catch (err) {
+              console.error(err);
+              mostrarToast('Error al subir logo', true);
             } finally {
               btnEditAvatar.textContent = '📷';
             }
@@ -1159,6 +1157,37 @@ function rerenderCategorias(lista, idxFoco) {
           input.click();
         });
       }
+
+      // Lógica para cambiar la Foto de Fondo (Portada)
+      const btnEditCover = document.getElementById('btnEditCover');
+      if (btnEditCover) {
+        btnEditCover.addEventListener('click', () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            btnEditCover.textContent = '⏳...';
+            try {
+              const url = await subirImagen(file, 'cover', PLAN_DATA.cover);
+              document.getElementById('headerBg').style.backgroundImage = `url(${url})`;
+              PLAN_DATA.cover = url;
+              CAMBIOS_PENDIENTES.cover = url;
+              marcarComoSucio();
+              mostrarToast('Fondo actualizado. ¡Guarda cambios!');
+            } catch (err) {
+              console.error(err);
+              mostrarToast('Error al subir fondo', true);
+            } finally {
+              btnEditCover.textContent = '📷 Cambiar fondo';
+            }
+          };
+          input.click();
+        });
+      }
+    }
                  // Lógica para cambiar la Foto de Fondo (Portada)
       const btnEditCover = document.getElementById('btnEditCover');
       if (btnEditCover) {
