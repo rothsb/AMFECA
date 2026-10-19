@@ -1624,12 +1624,25 @@
       // o le falte ese campo, para que el filtro nunca truene.
       const shop = sanitizeShop(shopsData[el.dataset.id]);
            // Convertimos ambas a minúsculas para comparar de forma segura
+            // Buscamos la categoría en minúsculas
       const catBuscada = cat.toLowerCase();
-      const catLocal = (shop.categoria || "").toLowerCase();
       
-      const coincide = cat === "Otros"
-        ? !categoriasPrincipales.map(c => c.toLowerCase()).includes(catLocal)
-        : catLocal === catBuscada;
+      // Obtenemos la principal y las secundarias del local
+      const catLocal = (shop.categoria || "").toLowerCase();
+      const clavesLocales = Array.isArray(shop.categorias_clave) 
+        ? shop.categorias_clave.map(c => (c || "").toLowerCase()) 
+        : [];
+        
+      // ¿Coincide con la principal O con alguna de las secundarias?
+      const tieneLaCategoria = (catLocal === catBuscada) || clavesLocales.includes(catBuscada);
+      
+      let coincide;
+      if (cat === "Otros") {
+        // Si la categoría principal no está en las principales, cuenta como "Otros"
+        coincide = !categoriasPrincipales.map(c => c.toLowerCase()).includes(catLocal);
+      } else {
+        coincide = tieneLaCategoria;
+      }
       el.classList.toggle("match", coincide);
       el.classList.toggle("dim", !coincide);
     });
